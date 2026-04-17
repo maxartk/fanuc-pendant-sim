@@ -1,0 +1,56 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Add Capacitor
+        run: npx cap add android
+
+      - name: Sync web assets
+        run: npx cap sync android
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set ANDROID_HOME
+        run: echo "ANDROID_HOME=/opt/android-sdk" >> $GITHUB_ENV
+
+      - name: Build Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          ls -la app/build/outputs/apk/debug/
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fanuc-pendant-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Release APK
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: android/app/build/outputs/apk/debug/app-debug.apk

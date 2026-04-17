@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>FANUC R-30iA Teach Pendant Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #1a1a1a;
+            font-family: 'Roboto', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            color: #fff;
+        }
+
+        .pendant {
+            background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+            border-radius: 20px;
+            padding: 15px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 3px solid #444;
+        }
+
+        .top-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .ear {
+            width: 50px;
+            height: 30px;
+            background: linear-gradient(180deg, #555, #333);
+            border-radius: 5px 5px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .key-switch {
+            width: 20px;
+            height: 15px;
+            background: #222;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #888;
+            border: 1px solid #555;
+        }
+
+        .e-stop {
+            width: 35px;
+            height: 35px;
+            background: radial-gradient(circle, #ff3333, #cc0000);
+            border-radius: 50%;
+            border: 3px solid #ffcc00;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255,0,0,0.5);
+        }
+
+        .screen {
+            background: #000;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 2px solid #333;
+            position: relative;
+            overflow: hidden;
+            min-height: 120px;
+        }
+
+        .screen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .screen-title {
+            font-size: 11px;
+            color: #0ff;
+            text-transform: uppercase;
+        }
+
+        .screen-status {
+            display: flex;
+            gap: 10px;
+            font-size: 10px;
+        }
+
+        .status-led {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .led-green { background: #0f0; box-shadow: 0 0 5px #0f0; }
+        .led-red { background: #f00; box-shadow: 0 0 5px #f00; }
+        .led-yellow { background: #ff0; box-shadow: 0 0 5px #ff0; }
+        .led-off { background: #333; box-shadow: none; }
+
+        .screen-content {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #0f0;
+            line-height: 1.4;
+            min-height: 60px;
+        }
+
+        .screen-warning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: #ff0;
+            opacity: 0.3;
+        }
+
+        .function-keys {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            gap: 3px;
+        }
+
+        .func-btn {
+            flex: 1;
+            padding: 6px 2px;
+            background: linear-gradient(180deg, #555, #333);
+            border: 1px solid #666;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 9px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .func-btn:hover, .func-btn:active {
+            background: linear-gradient(180deg, #666, #444);
+        }
+
+        .func-btn .key {
+            font-weight: bold;
+            color: #0ff;
+        }
+
+        .main-keys {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .key-row {
+            display: flex;
+            gap: 5px;
+            justify-content: space-between;
+        }
+
+        .key {
+            background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
+            border: 1px solid #555;
+            border-radius: 5px;
+            color: #fff;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 32px;
+            padding: 0 6px;
+            user-select: none;
+            transition: all 0.1s;
+        }
+
+        .key:active {
+            transform: scale(0.95);
+            background: linear-gradient(180deg, #333, #222);
+        }
+
+        .key-blue {
+            background: linear-gradient(180deg, #2a4a6a, #1a2a3a);
+            border-color: #4a6a8a;
+        }
+
+        .key-green {
+            background: linear-gradient(180deg, #2a5a2a, #1a3a1a);
+            border-color: #4a8a4a;
+        }
+
+        .key-orange {
+            background: linear-gradient(180deg, #6a4a2a, #4a3a1a);
+            border-color: #8a6a4a;
+        }
+
+        .key-large {
+            min-width: 60px;
+            font-size: 10px;
+        }
+
+        .key-wide {
+            min-width: 80px;
+        }
+
+        .key-nav {
+            width: 36px;
+            height: 36px;
+            font-size: 16px;
+        }
+
+        .nav-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 36px);
+            gap: 3px;
+            justify-content: center;
+        }
+
+        .nav-center {
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+        }
+
+        .left-panel, .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .left-panel .key {
+            min-width: 50px;
+            font-size: 9px;
+            height: 28px;
+        }
+
+        .axis-control {
+            display: flex;
+            gap: 10px;
+        }
+
+        .axis-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .axis-label {
+            font-size: 8px;
+            color: #888;
+            text-align: center;
+        }
+
+        .axis-row {
+            display: flex;
+            gap: 2px;
+        }
+
+        .axis-btn {
+            width: 28px;
+            height: 24px;
+            background: linear-gradient(180deg, #3a4a5a, #2a3a4a);
+            border: 1px solid #5a6a7a;
+            border-radius: 3px;
+            color: #0ff;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .axis-btn:active {
+            background: linear-gradient(180deg, #2a3a4a, #1a2a3a);
+        }
+
+        .coords-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .coord-btn {
+            padding: 8px 4px;
+            background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
+            border: 1px solid #555;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 9px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .coord-btn.active {
+            background: linear-gradient(180deg, #2a5a2a, #1a3a1a);
+            border-color: #4a8a4a;
+        }
+
+        .jog-section {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .speed-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .speed-label {
+            font-size: 8px;
+            color: #888;
+        }
+
+        .speed-btns {
+            display: flex;
+            gap: 3px;
+        }
+
+        .speed-btn {
+            width: 30px;
+            height: 22px;
+            background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
+            border: 1px solid #555;
+            border-radius: 3px;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #333;
+        }
+
+        .status-item {
+            font-size: 9px;
+            color: #888;
+        }
+
+        .status-item span {
+            color: #0ff;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 100;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .menu-overlay.show {
+            display: block;
+        }
+
+        .menu-title {
+            font-size: 18px;
+            color: #0ff;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .menu-item {
+            padding: 12px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .menu-item:hover, .menu-item:active {
+            background: #2a2a2a;
+            border-color: #0ff;
+        }
+
+        .menu-back {
+            margin-top: 15px;
+            padding: 12px;
+            background: #4a2a2a;
+            border: 1px solid #5a3a3a;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .position-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .pos-item {
+            background: #111;
+            padding: 5px;
+            border-radius: 3px;
+            text-align: center;
+        }
+
+        .pos-label {
+            font-size: 9px;
+            color: #888;
+        }
+
+        .pos-value {
+            font-size: 11px;
+            color: #0ff;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="pendant">
+        <!-- Top Section: E-Stop and Key Switch -->
+        <div class="top-section">
+            <div class="ear">
+                <div class="key-switch">OFF<br>ON</div>
+            </div>
+            <div class="e-stop" id="estop"></div>
+            <div class="ear" style="visibility: hidden;"></div>
+        </div>
+
+        <!-- Screen -->
+        <div class="screen">
+            <div class="screen-warning" id="screenWarning">⚠</div>
+            <div class="screen-header">
+                <span class="screen-title" id="screenTitle">FANUC R-30iA</span>
+                <div class="screen-status">
+                    <div class="status-led">
+                        <div class="led led-green" id="powerLed"></div>
+                        <span>PWR</span>
+                    </div>
+                    <div class="status-led">
+                        <div class="led led-off" id="faultLed"></div>
+                        <span>FAULT</span>
+                    </div>
+                </div>
+            </div>
+            <div class="screen-content" id="screenContent">
+                <div style="text-align: center; padding: 10px;">
+                    <div style="color: #0ff; font-size: 14px;">🤖 ROBOT READY</div>
+                    <div style="color: #888; font-size: 10px; margin-top: 5px;">PRESS MENU TO CONTINUE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Function Keys F1-F5 -->
+        <div class="function-keys">
+            <div class="func-btn" onclick="pressFkey('PREV')"><span class="key">◀</span></div>
+            <div class="func-btn" onclick="pressFkey('F1')"><span class="key">F1</span></div>
+            <div class="func-btn" onclick="pressFkey('F2')"><span class="key">F2</span></div>
+            <div class="func-btn" onclick="pressFkey('F3')"><span class="key">F3</span></div>
+            <div class="func-btn" onclick="pressFkey('F4')"><span class="key">F4</span></div>
+            <div class="func-btn" onclick="pressFkey('F5')"><span class="key">F5</span></div>
+            <div class="func-btn" onclick="pressFkey('NEXT')"><span class="key">▶</span></div>
+        </div>
+
+        <!-- Main Keys Row -->
+        <div class="main-keys">
+            <div class="key-row">
+                <div class="key key-blue key-large">SHIFT</div>
+                <div class="key key-blue" onclick="pressMenu()">MENU</div>
+                <div class="key key-blue" onclick="pressSelect()">SELECT</div>
+                <div class="key key-blue" onclick="pressEdit()">EDIT</div>
+                <div class="key key-blue">DATA</div>
+                <div class="key key-blue">FCTN</div>
+                <div class="key key-blue key-large">SHIFT</div>
+            </div>
+
+            <!-- Navigation and Left Panel -->
+            <div style="display: flex; gap: 8px;">
+                <!-- Left Panel -->
+                <div class="left-panel">
+                    <div class="key" style="color: #0ff;">i</div>
+                    <div class="key key-blue">DISP</div>
+                    <div class="key key-orange">RESET</div>
+                    <div class="key">BS</div>
+                    <div class="key">ITEM</div>
+                    <div class="key key-green">ENTER</div>
+                </div>
+
+                <!-- Center: Navigation -->
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                    <div class="key key-nav" onclick="pressNav('UP')">↑</div>
+                    <div style="display: flex; gap: 5px;">
+                        <div class="key key-nav" onclick="pressNav('LEFT')">←</div>
+                        <div class="key key-nav" style="color: #ff0;" onclick="pressHelp()">?</div>
+                        <div class="key key-nav" onclick="pressNav('RIGHT')">→</div>
+                    </div>
+                    <div class="key key-nav" onclick="pressNav('DOWN')">↓</div>
+                </div>
+
+                <!-- Right: Numeric Keypad -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;">
+                    <div class="key" onclick="pressNum('7')">7</div>
+                    <div class="key" onclick="pressNum('8')">8</div>
+                    <div class="key" onclick="pressNum('9')">9</div>
+                    <div class="key" onclick="pressNum('4')">4</div>
+                    <div class="key" onclick="pressNum('5')">5</div>
+                    <div class="key" onclick="pressNum('6')">6</div>
+                    <div class="key" onclick="pressNum('1')">1</div>
+                    <div class="key" onclick="pressNum('2')">2</div>
+                    <div class="key" onclick="pressNum('3')">3</div>
+                    <div class="key" onclick="pressNum('0')">0</div>
+                    <div class="key" onclick="pressNum('.')">.</div>
+                    <div class="key" onclick="pressNum('-')">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Axis Control -->
+        <div class="jog-section">
+            <div class="axis-control">
+                <div class="axis-group">
+                    <div class="axis-label">J1</div>
+                    <div class="axis-row">
+                        <div class="axis-btn" onclick="jogAxis('J1-')">-X</div>
+                        <div class="axis-btn" onclick="jogAxis('J1+')">+X</div>
+                    </div>
+                </div>
+                <div class="axis-group">
+                    <div class="axis-label">J2</div>
+                    <div class="axis-row">
+                        <div class="axis-btn" onclick="jogAxis('J2-')">-Y</div>
+                        <div class="axis-btn" onclick="jogAxis('J2+')">+Y</div>
+                    </div>
+                </div>
+                <div class="axis-group">
+                    <div class="axis-label">J3</div>
+                    <div class="axis-row">
+                        <div class="axis-btn" onclick="jogAxis('J3-')">-Z</div>
+                        <div class="axis-btn" onclick="jogAxis('J3+')">+Z</div>
+                    </div>
+                </div>
+                <div class="axis-group">
+                    <div class="axis-label">J4</div>
+                    <div class="axis-row">
+                        <div class="axis-btn" onclick="jogAxis('J4-')">-X</div>
+                        <div class="axis-btn" onclick="jogAxis('J4+')">+X</div>
+                    </div>
+                </div>
+                <div class="axis-group">
+                    <div class="axis-label">J5</div>
+                    <div class="axis-row">
+                        <div class="axis-btn" onclick="jogAxis('J5-')">-Y</div>
+                        <div class="axis-btn" onclick="jogAxis('J5+')">+Y</div>
+                    </div>
+                </div>
+                <div class="axis-group">
+                    <div class="axis-label">J6</div>
+                    <div class="axis-row">
+                        <div class="axis-btn" onclick="jogAxis('J6-')">-Z</div>
+                        <div class="axis-btn" onclick="jogAxis('J6+')">+Z</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Speed Control -->
+            <div class="speed-control">
+                <div class="speed-label">%</div>
+                <div class="speed-btns">
+                    <div class="speed-btn" onclick="changeSpeed(-5)">-</div>
+                    <div class="speed-btn" onclick="changeSpeed(5)">+</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COORD, STEP, HOLD, FWD/BWD -->
+        <div class="coords-grid">
+            <div class="coord-btn active" id="coordBtn" onclick="toggleCoord()">JOINT</div>
+            <div class="coord-btn" onclick="toggleStep()">STEP</div>
+            <div class="coord-btn" id="holdBtn" onclick="toggleHold()">HOLD</div>
+            <div class="coord-btn" onclick="toggleFwdBwd()">FWD/BWD</div>
+        </div>
+
+        <!-- Status Row -->
+        <div class="status-row">
+            <div class="status-item">SPEED: <span id="speedValue">100%</span></div>
+            <div class="status-item">COORD: <span id="coordValue">JOINT</span></div>
+            <div class="status-item">MODE: <span id="modeValue"> Teach</span></div>
+        </div>
+
+        <!-- Position Display -->
+        <div class="position-display">
+            <div class="pos-item">
+                <div class="pos-label">J1</div>
+                <div class="pos-value" id="j1Pos">0.000</div>
+            </div>
+            <div class="pos-item">
+                <div class="pos-label">J2</div>
+                <div class="pos-value" id="j2Pos">0.000</div>
+            </div>
+            <div class="pos-item">
+                <div class="pos-label">J3</div>
+                <div class="pos-value" id="j3Pos">0.000</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay">
+        <div class="menu-title" id="menuTitle">MENU</div>
+        <div id="menuContent"></div>
+        <div class="menu-back" onclick="closeMenu()">← BACK</div>
+    </div>
+
+    <script>
+        // State
+        let state = {
+            speed: 100,
+            coord: 'JOINT',
+            step: false,
+            hold: false,
+            fwdBwd: false,
+            shift: false,
+            positions: [0, 0, 0, 0, 0, 0],
+            fault: false,
+            estop: false
+        };
+
+        // Toast notification
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 1500);
+        }
+
+        // E-Stop
+        document.getElementById('estop').addEventListener('click', () => {
+            state.estop = !state.estop;
+            document.getElementById('faultLed').className = state.estop ? 'led led-red' : 'led led-off';
+            document.getElementById('screenWarning').style.display = state.estop ? 'block' : 'none';
+            if (state.estop) {
+                showToast('⚠ E-STOP PRESSED');
+            } else {
+                showToast('E-STOP RELEASED');
+            }
+        });
+
+        // Speed control
+        function changeSpeed(delta) {
+            state.speed = Math.max(0, Math.min(100, state.speed + delta));
+            document.getElementById('speedValue').textContent = state.speed + '%';
+            showToast('Speed: ' + state.speed + '%');
+        }
+
+        // Coordinate system
+        function toggleCoord() {
+            const coords = ['JOINT', 'JOG', 'WORLD', 'TOOL'];
+            const idx = coords.indexOf(state.coord);
+            state.coord = coords[(idx + 1) % coords.length];
+            document.getElementById('coordValue').textContent = state.coord;
+            document.getElementById('coordBtn').textContent = state.coord;
+            showToast('COORD: ' + state.coord);
+        }
+
+        // Step mode
+        function toggleStep() {
+            state.step = !state.step;
+            document.getElementById('modeValue').textContent = state.step ? 'STEP' : ' Teach';
+            showToast('STEP: ' + (state.step ? 'ON' : 'OFF'));
+        }
+
+        // Hold
+        function toggleHold() {
+            state.hold = !state.hold;
+            const btn = document.getElementById('holdBtn');
+            btn.style.background = state.hold ? '#5a2a2a' : '';
+            btn.style.borderColor = state.hold ? '#8a4a4a' : '';
+            showToast('HOLD: ' + (state.hold ? 'ON' : 'OFF'));
+        }
+
+        // FWD/BWD
+        function toggleFwdBwd() {
+            state.fwdBwd = !state.fwdBwd;
+            showToast(state.fwdBwd ? 'FWD/BWD Mode' : 'JOG Mode');
+        }
+
+        // Navigation
+        function pressNav(dir) {
+            const nav = document.getElementById('screenContent');
+            showToast('NAV: ' + dir);
+        }
+
+        // Help
+        function pressHelp() {
+            showToast('HELP: Press MENU for main menu');
+        }
+
+        // F keys
+        function pressFkey(key) {
+            showToast('FKEY: ' + key);
+        }
+
+        // Menu
+        function pressMenu() {
+            showMenu('main');
+        }
+
+        function showMenu(type) {
+            const overlay = document.getElementById('menuOverlay');
+            const title = document.getElementById('menuTitle');
+            const content = document.getElementById('menuContent');
+
+            const menus = {
+                main: {
+                    title: 'SYSTEM MENU',
+                    items: [
+                        { text: '🖥️ DISPLAY', action: () => showMenu('display') },
+                        { text: '⚙️ SETUP', action: () => showMenu('setup') },
+                        { text: '📝 PROGRAM', action: () => showMenu('program') },
+                        { text: '🔧 SYSTEM', action: () => showMenu('system') },
+                        { text: '📊 STATUS', action: () => showStatus() },
+                        { text: '❓ HELP', action: () => showHelp() }
+                    ]
+                },
+                display: {
+                    title: 'DISPLAY MENU',
+                    items: [
+                        { text: '📍 POSITION', action: () => showPosition() },
+                        { text: '📋 PROGRAM', action: () => showProgram() },
+                        { text: '📈 VARIABLES', action: () => showVariables() },
+                        { text: '⚡ I/O', action: () => showIO() },
+                        { text: '◀ BACK', action: () => showMenu('main') }
+                    ]
+                },
+                setup: {
+                    title: 'SETUP MENU',
+                    items: [
+                        { text: '🖱️ JOG', action: () => showJog() },
+                        { text: '📐 FRAME', action: () => showFrame() },
+                        { text: '🔧 MASTERING', action: () => showMastering() },
+                        { text: '⚡ I/O SETUP', action: () => showIOSetup() },
+                        { text: '◀ BACK', action: () => showMenu('main') }
+                    ]
+                },
+                program: {
+                    title: 'PROGRAM MENU',
+                    items: [
+                        { text: '📝 SELECT PROGRAM', action: () => showSelect() },
+                        { text: '▶ CREATE NEW', action: () => showNew() },
+                        { text: '▶ LOAD', action: () => showLoad() },
+                        { text: '💾 SAVE', action: () => showSave() },
+                        { text: '◀ BACK', action: () => showMenu('main') }
+                    ]
+                },
+                system: {
+                    title: 'SYSTEM MENU',
+                    items: [
+                        { text: '🔄 CONFIG', action: () => showConfig() },
+                        { text: '📜 VERSION', action: () => showVersion() },
+                        { text: '🧪 DIAGNOSTICS', action: () => showDiagnostics() },
+                        { text: '◀ BACK', action: () => showMenu('main') }
+                    ]
+                }
+            };
+
+            const menu = menus[type];
+            title.textContent = menu.title;
+            content.innerHTML = menu.items.map(item =>
+                '<div class="menu-item" onclick="closeMenu(); setTimeout(() => { ' +
+                (item.action ? 'item.action();' : '') +
+                ' }, 100)">' + item.text + '</div>'
+            ).join('');
+
+            // Store item actions
+            content.querySelectorAll('.menu-item').forEach((el, i) => {
+                el.onclick = () => {
+                    closeMenu();
+                    setTimeout(menu.items[i].action, 100);
+                };
+            });
+
+            overlay.classList.add('show');
+        }
+
+        function closeMenu() {
+            document.getElementById('menuOverlay').classList.remove('show');
+        }
+
+        function showStatus() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 8px;">📊 ROBOT STATUS</div>
+                    <div style="color: #888;">Controller: R-30iA</div>
+                    <div style="color: #888;">Robot: M-10iA</div>
+                    <div style="color: #888;">Version: V8.30</div>
+                    <div style="color: #888; margin-top: 8px;">Faults: ${state.fault ? 'YES' : 'None'}</div>
+                    <div style="color: #888;">E-Stop: ${state.estop ? 'PRESSED' : 'OK'}</div>
+                    <div style="color: #888;">Mode: T1</div>
+                </div>
+            `;
+        }
+
+        function showHelp() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 8px;">❓ HELP</div>
+                    <div style="color: #888;">This is a FANUC R-30iA</div>
+                    <div style="color: #888;">Teach Pendant Simulator</div>
+                    <div style="color: #888; margin-top: 8px;">Use MENU for main menu</div>
+                    <div style="color: #888;">Use arrow keys to navigate</div>
+                    <div style="color: #888;">Press E-STOP for emergency</div>
+                </div>
+            `;
+        }
+
+        function showPosition() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📍 JOINT POSITION</div>
+                    ${[0,1,2,3,4,5].map(i => `
+                        <div style="display: flex; justify-content: space-between; color: #0f0; margin: 2px 0;">
+                            <span>J${i+1}:</span>
+                            <span>${state.positions[i].toFixed(3)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function showProgram() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📋 PROGRAM</div>
+                    <div style="color: #888;">No program loaded</div>
+                    <div style="color: #888; margin-top: 5px;">Press SELECT to choose</div>
+                </div>
+            `;
+        }
+
+        function showVariables() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📈 VARIABLES</div>
+                    <div style="color: #888;">R[1] = 0.000</div>
+                    <div style="color: #888;">R[2] = 0.000</div>
+                    <div style="color: #888;">PR[1] = (0,0,0,0,0,0)</div>
+                </div>
+            `;
+        }
+
+        function showIO() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">⚡ I/O STATUS</div>
+                    <div style="color: #888;">DI[1-8]: 00000000</div>
+                    <div style="color: #888;">DO[1-8]: 00000000</div>
+                    <div style="color: #888;">UI[1-8]: 00000000</div>
+                    <div style="color: #888;">UO[1-8]: 00000000</div>
+                </div>
+            `;
+        }
+
+        function showJog() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">🖱️ JOG SETTINGS</div>
+                    <div style="color: #888;">Coord: ${state.coord}</div>
+                    <div style="color: #888;">Speed: ${state.speed}%</div>
+                    <div style="color: #888; margin-top: 5px;">Use axis buttons</div>
+                    <div style="color: #888;">to jog robot</div>
+                </div>
+            `;
+        }
+
+        function showFrame() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📐 FRAME SETUP</div>
+                    <div style="color: #888;">WORLD FRAME</div>
+                    <div style="color: #888;">TOOL FRAME</div>
+                    <div style="color: #888;">USER FRAME</div>
+                </div>
+            `;
+        }
+
+        function showMastering() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">🔧 MASTERING</div>
+                    <div style="color: #888;">Home search required</div>
+                    <div style="color: #888; margin-top: 5px;">Mastering done at</div>
+                    <div style="color: #888;">factory default</div>
+                </div>
+            `;
+        }
+
+        function showIOSetup() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">⚡ I/O SETUP</div>
+                    <div style="color: #888;">Configure inputs</div>
+                    <div style="color: #888;">and outputs</div>
+                </div>
+            `;
+        }
+
+        function showSelect() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📝 SELECT PROGRAM</div>
+                    <div style="color: #888; margin-top: 5px;">No programs found</div>
+                    <div style="color: #888;">Create new or load</div>
+                </div>
+            `;
+        }
+
+        function showNew() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📝 CREATE PROGRAM</div>
+                    <div style="color: #888;">Enter program name</div>
+                    <div style="color: #888;">using keypad</div>
+                </div>
+            `;
+        }
+
+        function showLoad() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📂 LOAD PROGRAM</div>
+                    <div style="color: #888;">Select from list</div>
+                </div>
+            `;
+        }
+
+        function showSave() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">💾 SAVE</div>
+                    <div style="color: #888;">No changes to save</div>
+                </div>
+            `;
+        }
+
+        function showConfig() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">🔄 CONFIGURATION</div>
+                    <div style="color: #888;">Axis: 6</div>
+                    <div style="color: #888;">Payload: Default</div>
+                </div>
+            `;
+        }
+
+        function showVersion() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📜 VERSION</div>
+                    <div style="color: #888;">R-30iA</div>
+                    <div style="color: #888;">V8.30.00</div>
+                    <div style="color: #888;">© FANUC</div>
+                </div>
+            `;
+        }
+
+        function showDiagnostics() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">🧪 DIAGNOSTICS</div>
+                    <div style="color: #0f0;">All systems OK</div>
+                    <div style="color: #888; margin-top: 5px;">Memory: 85% free</div>
+                    <div style="color: #888;">Battery: OK</div>
+                </div>
+            `;
+        }
+
+        function pressSelect() {
+            showSelect();
+        }
+
+        function pressEdit() {
+            document.getElementById('screenContent').innerHTML = `
+                <div style="font-size: 11px;">
+                    <div style="color: #0ff; margin-bottom: 5px;">📝 EDIT MODE</div>
+                    <div style="color: #888;">Select a program first</div>
+                </div>
+            `;
+        }
+
+        // Jog Axis
+        function jogAxis(axis) {
+            if (state.estop) {
+                showToast('⚠ E-STOP ACTIVE');
+                return;
+            }
+            if (state.hold) {
+                showToast('⚠ HOLD ACTIVE');
+                return;
+            }
+
+            const idx = parseInt(axis[1]) - 1;
+            const delta = (axis.endsWith('+') ? 1 : -1) * state.speed * 0.001;
+            state.positions[idx] += delta;
+
+            const posEl = document.getElementById('j' + (idx + 1) + 'Pos');
+            if (posEl) posEl.textContent = state.positions[idx].toFixed(3);
+
+            showToast(axis + ' @ ' + state.speed + '%');
+        }
+
+        // Number input
+        let numBuffer = '';
+        function pressNum(num) {
+            numBuffer += num;
+            showToast('INPUT: ' + numBuffer);
+        }
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            const key = e.key.toUpperCase();
+            const numMap = {'0':'0','1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9','-':'-','.':'.'};
+            if (numMap[e.key]) {
+                pressNum(numMap[e.key]);
+                e.preventDefault();
+            }
+            if (key === 'ENTER') document.querySelector('.key-green')?.click();
+            if (key === 'ESCAPE') closeMenu();
+        });
+    </script>
+</body>
+</html>
