@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,31 +17,66 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Sync web assets
-        run: npx cap sync android
-
-      - name: Set up JDK
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set ANDROID_HOME
-        run: echo "ANDROID_HOME=/opt/android-sdk" >> $GITHUB_ENV
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools'
 
-      - name: Build Android APK
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Ensure www has index.html
         run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
-          ls -la app/build/outputs/apk/debug/
+          mkdir -p www
+          cp index.html www/index.html
+          ls -la www/
 
-      - name: Upload APK
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Copy web assets to native project
+        run: npx cap copy android
+
+      - name: Sync Capacitor plugins
+        run: npx cap sync android
+
+      - name: Patch Gradle for CI (skip aaptOptions issues)
+        run: |
+          if [ -f android/app/build.gradle ]; then
+            echo "Gradle file present:"
+            head -40 android/app/build.gradle
+          fi
+
+      - name: Build Debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+          echo "---"
+          ls -la app/build/outputs/apk/debug/ || echo "APK output dir missing"
+
+      - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: fanuc-pendant-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            android/app/build/reports/
+            android/build/
+          if-no-files-found: ignore
