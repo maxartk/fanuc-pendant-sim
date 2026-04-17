@@ -1,1094 +1,898 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>FANUC R-30iA Teach Pendant Simulator</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#3e4450">
+<title>FANUC iPendant Simulator — R-30iA / R-2000iC</title>
+<style>
+  :root {
+    --case-top:        #7a8290;
+    --case-mid:        #5e6672;
+    --case-dark:       #3e4450;
+    --panel:           #ded9c9;
+    --panel-edge:      #b0ab9c;
+    --key-gray:        #d4d0c4;
+    --key-gray-edge:   #a8a498;
+    --key-blue:        #2c6ba8;
+    --key-blue-edge:   #1e4d7c;
+    --key-white:       #f5f2e8;
+    --label:           #1a1a1a;
+    --sublabel:        #555;
+    --screen-bg:       #0d1a0d;
+    --screen-fg:       #c8ffd0;
+    --screen-hdr:      #1e3a5f;
+    --screen-accent:   #00ff88;
+    --led-on-grn:      #3dff6b;
+    --led-on-red:      #ff3838;
+    --led-off:         #2a2a2a;
+    --estop-red:       #d81e1e;
+    --estop-ring:      #f5d000;
+  }
 
-        body {
-            background: #1a1a1a;
-            font-family: 'Roboto', Arial, sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 10px;
-            color: #fff;
-        }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        .pendant {
-            background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
-            border-radius: 20px;
-            padding: 15px;
-            max-width: 420px;
-            width: 100%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-            border: 3px solid #444;
-        }
+  html, body {
+    background: #1a1c20;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    min-height: 100vh;
+    color: #fff;
+    overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none;
+    touch-action: manipulation;
+  }
 
-        .top-section {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 6px;
+  }
 
-        .ear {
-            width: 50px;
-            height: 30px;
-            background: linear-gradient(180deg, #555, #333);
-            border-radius: 5px 5px 0 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
+  .pendant {
+    background: linear-gradient(180deg, var(--case-top) 0%, var(--case-mid) 45%, var(--case-dark) 100%);
+    border-radius: 32px 32px 22px 22px;
+    padding: 14px 14px 22px 14px;
+    max-width: 540px;
+    width: 100%;
+    box-shadow:
+      0 12px 44px rgba(0,0,0,0.6),
+      inset 0 2px 0 rgba(255,255,255,0.18),
+      inset 0 -3px 10px rgba(0,0,0,0.35);
+    position: relative;
+  }
 
-        .key-switch {
-            width: 20px;
-            height: 15px;
-            background: #222;
-            border-radius: 3px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 8px;
-            color: #888;
-            border: 1px solid #555;
-        }
+  .top-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 80px;
+    align-items: center;
+    padding: 6px 6px 12px 6px;
+    gap: 8px;
+  }
 
-        .e-stop {
-            width: 35px;
-            height: 35px;
-            background: radial-gradient(circle, #ff3333, #cc0000);
-            border-radius: 50%;
-            border: 3px solid #ffcc00;
-            cursor: pointer;
-            box-shadow: 0 0 15px rgba(255,0,0,0.5);
-        }
+  .keyswitch-holder { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .keyswitch {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #2a2a2a, #0a0a0a);
+    border: 3px solid #1a1a1a;
+    position: relative; cursor: pointer;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.5);
+  }
+  .keyswitch::before {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: 30px; height: 4px; background: #aaa; border-radius: 2px;
+    transform-origin: center; transition: transform 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  }
+  .keyswitch.pos-t1::before   { transform: translate(-50%,-50%) rotate(-45deg); }
+  .keyswitch.pos-auto::before { transform: translate(-50%,-50%) rotate(0deg); }
+  .keyswitch.pos-t2::before   { transform: translate(-50%,-50%) rotate(45deg); }
+  .keyswitch-label {
+    font-size: 9px; color: #1a1a1a; font-weight: 800;
+    background: var(--panel); padding: 1px 6px; border-radius: 3px;
+    letter-spacing: 0.5px;
+  }
 
-        .screen {
-            background: #000;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border: 2px solid #333;
-            position: relative;
-            overflow: hidden;
-            min-height: 120px;
-        }
+  .warning-sticker { display: flex; justify-content: center; }
+  .warning-sticker div {
+    background: #f0ede2; border: 2px solid #1a1a1a;
+    padding: 4px 14px; font-size: 22px; line-height: 1; border-radius: 3px;
+    position: relative;
+  }
 
-        .screen-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #333;
-        }
+  .estop-holder { display: flex; justify-content: center; }
+  .estop {
+    width: 58px; height: 58px; border-radius: 50%;
+    background: radial-gradient(circle at 30% 25%, #ff4a4a, var(--estop-red) 55%, #7a0000);
+    border: 5px solid var(--estop-ring);
+    cursor: pointer;
+    box-shadow:
+      0 0 0 2px #1a1a1a,
+      0 4px 10px rgba(0,0,0,0.5),
+      inset 0 -4px 8px rgba(0,0,0,0.4),
+      inset 0 3px 6px rgba(255,255,255,0.2);
+    transition: transform 0.1s;
+  }
+  .estop.pressed {
+    transform: scale(0.92);
+    box-shadow:
+      0 0 0 2px #1a1a1a,
+      0 1px 3px rgba(0,0,0,0.7),
+      inset 0 4px 10px rgba(0,0,0,0.6);
+  }
 
-        .screen-title {
-            font-size: 11px;
-            color: #0ff;
-            text-transform: uppercase;
-        }
+  .screen-frame {
+    background: #1a1a1a; border-radius: 8px;
+    padding: 10px; margin: 0 6px 14px 6px;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.7);
+  }
+  .screen {
+    background: var(--screen-bg); border-radius: 4px;
+    padding: 0; min-height: 190px;
+    font-family: 'Courier New', monospace;
+    color: var(--screen-fg);
+    display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+  }
+  .screen-topbar {
+    background: var(--screen-hdr); color: #fff;
+    font-size: 10px; padding: 3px 6px;
+    display: flex; justify-content: space-between;
+    border-bottom: 1px solid #000;
+  }
+  .screen-statusbar {
+    background: #001a0a; color: var(--screen-accent);
+    font-size: 10px; padding: 3px 6px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+    border-bottom: 1px solid #0a3a1a;
+  }
+  .screen-statusbar .sb-item { display: flex; gap: 4px; }
+  .screen-statusbar .sb-label { color: #6a9a6a; }
+  .screen-body {
+    flex: 1; padding: 8px 10px;
+    font-size: 11px; line-height: 1.45;
+    overflow-y: auto;
+  }
+  .screen-fkeys {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    font-size: 9px; background: #001408; color: #8adb9a;
+    border-top: 1px solid #0a3a1a;
+  }
+  .screen-fkeys div {
+    padding: 3px 2px; text-align: center;
+    border-right: 1px solid #0a2a14; text-transform: uppercase;
+  }
+  .screen-fkeys div:last-child { border-right: none; }
 
-        .screen-status {
-            display: flex;
-            gap: 10px;
-            font-size: 10px;
-        }
+  .estop-overlay {
+    position: absolute; inset: 0;
+    background: rgba(216,30,30,0.15);
+    display: none; align-items: center; justify-content: center;
+    font-size: 28px; color: #ff4a4a;
+    font-weight: 800; letter-spacing: 4px;
+    text-shadow: 0 0 10px rgba(255,0,0,0.6);
+    animation: blink 1s infinite;
+  }
+  .estop-overlay.show { display: flex; }
+  @keyframes blink { 50% { opacity: 0.3; } }
 
-        .status-led {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
+  .key-panel {
+    background: var(--panel); border-radius: 6px;
+    padding: 10px 8px; border: 1px solid var(--panel-edge);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.3);
+  }
 
-        .led {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
+  .row-fkeys {
+    display: grid;
+    grid-template-columns: 0.9fr repeat(5, 1fr) 0.9fr;
+    gap: 4px; margin-bottom: 6px;
+  }
 
-        .led-green { background: #0f0; box-shadow: 0 0 5px #0f0; }
-        .led-red { background: #f00; box-shadow: 0 0 5px #f00; }
-        .led-yellow { background: #ff0; box-shadow: 0 0 5px #ff0; }
-        .led-off { background: #333; box-shadow: none; }
+  .row-menu-wrap { margin-bottom: 10px; }
+  .teach-label {
+    text-align: center; font-size: 8px; font-weight: 700;
+    letter-spacing: 4px; color: var(--label); margin-bottom: 2px;
+    position: relative;
+  }
+  .teach-label::before, .teach-label::after {
+    content: ''; position: absolute; top: 50%;
+    width: 22%; height: 1px; background: #1a1a1a;
+  }
+  .teach-label::before { left: 22%; }
+  .teach-label::after  { right: 22%; }
+  .row-menu {
+    display: grid;
+    grid-template-columns: 1.1fr repeat(5, 1fr) 1.1fr;
+    gap: 4px;
+  }
 
-        .screen-content {
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            color: #0f0;
-            line-height: 1.4;
-            min-height: 60px;
-        }
+  .main-area {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    gap: 8px; align-items: start;
+  }
+  @media (max-width: 440px) {
+    .main-area { grid-template-columns: 1fr 170px; }
+  }
 
-        .screen-warning {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 40px;
-            color: #ff0;
-            opacity: 0.3;
-        }
+  .left-block { display: flex; flex-direction: column; gap: 5px; }
+  .led-row {
+    display: flex; gap: 14px; align-items: center;
+    padding: 2px 4px 4px 4px;
+    font-size: 9px; color: var(--label); font-weight: 700;
+  }
+  .led { display: flex; align-items: center; gap: 4px; }
+  .led-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--led-off); border: 1px solid #000;
+  }
+  .led-dot.on-green { background: var(--led-on-grn); box-shadow: 0 0 6px var(--led-on-grn); }
+  .led-dot.on-red   { background: var(--led-on-red); box-shadow: 0 0 6px var(--led-on-red); }
 
-        .function-keys {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            gap: 3px;
-        }
+  .info-q-row {
+    display: grid;
+    grid-template-columns: 38px 1fr 38px;
+    gap: 4px; align-items: center;
+  }
+  .nav-row {
+    display: grid;
+    grid-template-columns: 38px 38px 38px 38px;
+    gap: 4px; justify-content: center;
+  }
+  .disp-row { display: grid; grid-template-columns: 1fr; gap: 4px; margin-top: 2px; }
+  .util-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 4px; }
+  .numpad   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 6px; }
+  .diag-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin-top: 4px; }
 
-        .func-btn {
-            flex: 1;
-            padding: 6px 2px;
-            background: linear-gradient(180deg, #555, #333);
-            border: 1px solid #666;
-            border-radius: 4px;
-            color: #fff;
-            font-size: 9px;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
+  .axis-block { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
 
-        .func-btn:hover, .func-btn:active {
-            background: linear-gradient(180deg, #666, #444);
-        }
+  .k {
+    background: linear-gradient(180deg, #f0ece0, var(--key-gray) 40%, var(--key-gray-edge));
+    border: 1px solid #8a8478; border-radius: 4px;
+    color: var(--label);
+    font-size: 10px; font-weight: 700;
+    cursor: pointer;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 32px; padding: 2px 4px;
+    text-align: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.2);
+    line-height: 1.1;
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  .k:active, .k.down {
+    transform: translateY(1px);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    background: linear-gradient(180deg, var(--key-gray-edge), var(--key-gray));
+  }
+  .k-blue {
+    background: linear-gradient(180deg, #4a90d0, var(--key-blue) 45%, var(--key-blue-edge));
+    color: #fff; border-color: #12355a;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.4);
+  }
+  .k-blue:active, .k-blue.down {
+    background: linear-gradient(180deg, var(--key-blue-edge), var(--key-blue));
+  }
+  .k-white { background: linear-gradient(180deg, #fff, var(--key-white) 50%, #dad4c0); }
+  .k small {
+    font-size: 8px; font-weight: 600;
+    color: var(--sublabel); margin-top: 1px;
+  }
+  .k-blue small { color: #d0e0f0; }
 
-        .func-btn .key {
-            font-weight: bold;
-            color: #0ff;
-        }
+  .k-nav { font-size: 15px; min-height: 36px; }
+  .k-q { color: #c80000; font-size: 14px; }
+  .k-axis { min-height: 38px; font-size: 11px; }
+  .k-disabled { opacity: 0.35; pointer-events: none; }
 
-        .main-keys {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
+  .disp-rocker {
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, #f0ece0, var(--key-gray-edge));
+    border: 1px solid #8a8478; border-radius: 4px;
+    min-height: 34px; overflow: hidden; cursor: pointer;
+  }
+  .disp-rocker .label {
+    flex: 0 0 auto; font-size: 9px; font-weight: 700; color: var(--label);
+    padding: 2px 0; text-align: center;
+  }
+  .disp-rocker .rocker {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr;
+    margin: 2px 4px 3px 4px; border: 1px solid #8a8478; border-radius: 2px;
+    background: #888; height: 10px;
+  }
+  .disp-rocker .rocker div { background: linear-gradient(180deg, #555, #222); }
+  .disp-rocker .rocker div.active { background: linear-gradient(180deg, #fff, #ccc); }
 
-        .key-row {
-            display: flex;
-            gap: 5px;
-            justify-content: space-between;
-        }
+  .hat { display: inline-block; }
 
-        .key {
-            background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
-            border: 1px solid #555;
-            border-radius: 5px;
-            color: #fff;
-            font-size: 11px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 36px;
-            height: 32px;
-            padding: 0 6px;
-            user-select: none;
-            transition: all 0.1s;
-        }
+  .toast {
+    position: fixed; bottom: 14px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.92);
+    color: var(--screen-accent);
+    padding: 10px 18px; border-radius: 6px;
+    font-size: 12px; font-family: 'Courier New', monospace;
+    opacity: 0; transition: opacity 0.25s;
+    pointer-events: none; z-index: 1000;
+    border: 1px solid #0a3a1a;
+  }
+  .toast.show { opacity: 1; }
 
-        .key:active {
-            transform: scale(0.95);
-            background: linear-gradient(180deg, #333, #222);
-        }
+  .menu-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.95); z-index: 100;
+    padding: 18px; overflow-y: auto;
+  }
+  .menu-overlay.show { display: block; }
+  .menu-title {
+    font-size: 16px; color: var(--screen-accent);
+    font-family: 'Courier New', monospace;
+    margin-bottom: 12px; padding-bottom: 8px;
+    border-bottom: 1px solid #333; letter-spacing: 1px;
+  }
+  .menu-item {
+    padding: 12px 14px; background: #111;
+    border: 1px solid #2a2a2a; border-radius: 4px;
+    margin-bottom: 6px; cursor: pointer;
+    color: #eee; font-size: 13px;
+    font-family: 'Courier New', monospace;
+  }
+  .menu-item:active { background: #1a2a1a; border-color: var(--screen-accent); }
+  .menu-back {
+    margin-top: 16px; padding: 12px;
+    background: #3a1a1a; border: 1px solid #5a2a2a;
+    border-radius: 4px; color: #fff; cursor: pointer;
+    text-align: center; font-size: 13px;
+    font-family: 'Courier New', monospace;
+  }
 
-        .key-blue {
-            background: linear-gradient(180deg, #2a4a6a, #1a2a3a);
-            border-color: #4a6a8a;
-        }
-
-        .key-green {
-            background: linear-gradient(180deg, #2a5a2a, #1a3a1a);
-            border-color: #4a8a4a;
-        }
-
-        .key-orange {
-            background: linear-gradient(180deg, #6a4a2a, #4a3a1a);
-            border-color: #8a6a4a;
-        }
-
-        .key-large {
-            min-width: 60px;
-            font-size: 10px;
-        }
-
-        .key-wide {
-            min-width: 80px;
-        }
-
-        .key-nav {
-            width: 36px;
-            height: 36px;
-            font-size: 16px;
-        }
-
-        .nav-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 36px);
-            gap: 3px;
-            justify-content: center;
-        }
-
-        .nav-center {
-            display: flex;
-            justify-content: center;
-            gap: 3px;
-        }
-
-        .left-panel, .right-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .left-panel .key {
-            min-width: 50px;
-            font-size: 9px;
-            height: 28px;
-        }
-
-        .axis-control {
-            display: flex;
-            gap: 10px;
-        }
-
-        .axis-group {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-        }
-
-        .axis-label {
-            font-size: 8px;
-            color: #888;
-            text-align: center;
-        }
-
-        .axis-row {
-            display: flex;
-            gap: 2px;
-        }
-
-        .axis-btn {
-            width: 28px;
-            height: 24px;
-            background: linear-gradient(180deg, #3a4a5a, #2a3a4a);
-            border: 1px solid #5a6a7a;
-            border-radius: 3px;
-            color: #0ff;
-            font-size: 10px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .axis-btn:active {
-            background: linear-gradient(180deg, #2a3a4a, #1a2a3a);
-        }
-
-        .coords-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
-            margin-top: 10px;
-        }
-
-        .coord-btn {
-            padding: 8px 4px;
-            background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
-            border: 1px solid #555;
-            border-radius: 4px;
-            color: #fff;
-            font-size: 9px;
-            cursor: pointer;
-            text-align: center;
-        }
-
-        .coord-btn.active {
-            background: linear-gradient(180deg, #2a5a2a, #1a3a1a);
-            border-color: #4a8a4a;
-        }
-
-        .jog-section {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .speed-control {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3px;
-        }
-
-        .speed-label {
-            font-size: 8px;
-            color: #888;
-        }
-
-        .speed-btns {
-            display: flex;
-            gap: 3px;
-        }
-
-        .speed-btn {
-            width: 30px;
-            height: 22px;
-            background: linear-gradient(180deg, #4a4a4a, #2a2a2a);
-            border: 1px solid #555;
-            border-radius: 3px;
-            color: #fff;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .status-row {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #333;
-        }
-
-        .status-item {
-            font-size: 9px;
-            color: #888;
-        }
-
-        .status-item span {
-            color: #0ff;
-        }
-
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.9);
-            color: #0f0;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            z-index: 1000;
-        }
-
-        .toast.show {
-            opacity: 1;
-        }
-
-        .menu-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 100;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .menu-overlay.show {
-            display: block;
-        }
-
-        .menu-title {
-            font-size: 18px;
-            color: #0ff;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #333;
-        }
-
-        .menu-item {
-            padding: 12px;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 5px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            color: #fff;
-            font-size: 14px;
-        }
-
-        .menu-item:hover, .menu-item:active {
-            background: #2a2a2a;
-            border-color: #0ff;
-        }
-
-        .menu-back {
-            margin-top: 15px;
-            padding: 12px;
-            background: #4a2a2a;
-            border: 1px solid #5a3a3a;
-            border-radius: 5px;
-            color: #fff;
-            cursor: pointer;
-            text-align: center;
-            font-size: 14px;
-        }
-
-        .position-display {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 5px;
-            margin-top: 10px;
-        }
-
-        .pos-item {
-            background: #111;
-            padding: 5px;
-            border-radius: 3px;
-            text-align: center;
-        }
-
-        .pos-label {
-            font-size: 9px;
-            color: #888;
-        }
-
-        .pos-value {
-            font-size: 11px;
-            color: #0ff;
-            font-family: monospace;
-        }
-    </style>
+  .deadman-wrap {
+    display: flex; justify-content: space-between;
+    padding: 6px 6px 2px 6px; gap: 8px;
+  }
+  .deadman {
+    flex: 1; padding: 6px;
+    background: linear-gradient(180deg, #666, #333);
+    border: 2px solid #222; border-radius: 6px;
+    color: #eee; font-size: 10px; font-weight: 700;
+    text-align: center; cursor: pointer; letter-spacing: 1px;
+  }
+  .deadman.held {
+    background: linear-gradient(180deg, #3a7a3a, #1a4a1a);
+    border-color: #0a2a0a; color: #aaffaa;
+  }
+</style>
 </head>
 <body>
-    <div class="pendant">
-        <!-- Top Section: E-Stop and Key Switch -->
-        <div class="top-section">
-            <div class="ear">
-                <div class="key-switch">OFF<br>ON</div>
-            </div>
-            <div class="e-stop" id="estop"></div>
-            <div class="ear" style="visibility: hidden;"></div>
-        </div>
 
-        <!-- Screen -->
-        <div class="screen">
-            <div class="screen-warning" id="screenWarning">⚠</div>
-            <div class="screen-header">
-                <span class="screen-title" id="screenTitle">FANUC R-30iA</span>
-                <div class="screen-status">
-                    <div class="status-led">
-                        <div class="led led-green" id="powerLed"></div>
-                        <span>PWR</span>
-                    </div>
-                    <div class="status-led">
-                        <div class="led led-off" id="faultLed"></div>
-                        <span>FAULT</span>
-                    </div>
-                </div>
-            </div>
-            <div class="screen-content" id="screenContent">
-                <div style="text-align: center; padding: 10px;">
-                    <div style="color: #0ff; font-size: 14px;">🤖 ROBOT READY</div>
-                    <div style="color: #888; font-size: 10px; margin-top: 5px;">PRESS MENU TO CONTINUE</div>
-                </div>
-            </div>
-        </div>
+<div class="pendant">
 
-        <!-- Function Keys F1-F5 -->
-        <div class="function-keys">
-            <div class="func-btn" onclick="pressFkey('PREV')"><span class="key">◀</span></div>
-            <div class="func-btn" onclick="pressFkey('F1')"><span class="key">F1</span></div>
-            <div class="func-btn" onclick="pressFkey('F2')"><span class="key">F2</span></div>
-            <div class="func-btn" onclick="pressFkey('F3')"><span class="key">F3</span></div>
-            <div class="func-btn" onclick="pressFkey('F4')"><span class="key">F4</span></div>
-            <div class="func-btn" onclick="pressFkey('F5')"><span class="key">F5</span></div>
-            <div class="func-btn" onclick="pressFkey('NEXT')"><span class="key">▶</span></div>
-        </div>
+  <div class="deadman-wrap">
+    <div class="deadman" id="deadmanL">DEADMAN ◀ HOLD</div>
+    <div class="deadman" id="deadmanR">HOLD ▶ DEADMAN</div>
+  </div>
 
-        <!-- Main Keys Row -->
-        <div class="main-keys">
-            <div class="key-row">
-                <div class="key key-blue key-large">SHIFT</div>
-                <div class="key key-blue" onclick="pressMenu()">MENU</div>
-                <div class="key key-blue" onclick="pressSelect()">SELECT</div>
-                <div class="key key-blue" onclick="pressEdit()">EDIT</div>
-                <div class="key key-blue">DATA</div>
-                <div class="key key-blue">FCTN</div>
-                <div class="key key-blue key-large">SHIFT</div>
-            </div>
+  <div class="top-row">
+    <div class="keyswitch-holder">
+      <div class="keyswitch pos-t1" id="keyswitch" title="Mode selector"></div>
+      <div class="keyswitch-label" id="keyswitchLabel">T1</div>
+    </div>
+    <div class="warning-sticker"><div>🚷</div></div>
+    <div class="estop-holder">
+      <div class="estop" id="estop" title="Emergency stop"></div>
+    </div>
+  </div>
 
-            <!-- Navigation and Left Panel -->
-            <div style="display: flex; gap: 8px;">
-                <!-- Left Panel -->
-                <div class="left-panel">
-                    <div class="key" style="color: #0ff;">i</div>
-                    <div class="key key-blue">DISP</div>
-                    <div class="key key-orange">RESET</div>
-                    <div class="key">BS</div>
-                    <div class="key">ITEM</div>
-                    <div class="key key-green">ENTER</div>
-                </div>
+  <div class="screen-frame">
+    <div class="screen">
+      <div class="estop-overlay" id="estopOverlay">E-STOP</div>
+      <div class="screen-topbar">
+        <span id="progLine">Busy Step Hold Fault</span>
+        <span id="progName">— No Program —</span>
+      </div>
+      <div class="screen-statusbar">
+        <div class="sb-item"><span class="sb-label">COORD</span><span id="sbCoord">JOINT</span></div>
+        <div class="sb-item"><span class="sb-label">SPD</span><span id="sbSpeed">100%</span></div>
+        <div class="sb-item"><span class="sb-label">MODE</span><span id="sbMode">T1</span></div>
+        <div class="sb-item"><span class="sb-label">GRP</span><span id="sbGroup">1</span></div>
+      </div>
+      <div class="screen-body" id="screenBody">
+        <div style="color: var(--screen-accent); margin-bottom: 6px;">== FANUC R-30iA ==</div>
+        <div style="color: #8adb9a;">Controller ready.</div>
+        <div style="color: #8adb9a;">Robot: R-2000iC/165F</div>
+        <div style="color: #8adb9a; margin-top: 6px;">Press MENU for main menu.</div>
+        <div style="color: #6a9a6a; margin-top: 8px; font-size: 10px;">Hold DEADMAN to enable jog.</div>
+      </div>
+      <div class="screen-fkeys">
+        <div id="fk1">—</div>
+        <div id="fk2">—</div>
+        <div id="fk3">—</div>
+        <div id="fk4">—</div>
+        <div id="fk5">—</div>
+      </div>
+    </div>
+  </div>
 
-                <!-- Center: Navigation -->
-                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px;">
-                    <div class="key key-nav" onclick="pressNav('UP')">↑</div>
-                    <div style="display: flex; gap: 5px;">
-                        <div class="key key-nav" onclick="pressNav('LEFT')">←</div>
-                        <div class="key key-nav" style="color: #ff0;" onclick="pressHelp()">?</div>
-                        <div class="key key-nav" onclick="pressNav('RIGHT')">→</div>
-                    </div>
-                    <div class="key key-nav" onclick="pressNav('DOWN')">↓</div>
-                </div>
+  <div class="key-panel">
 
-                <!-- Right: Numeric Keypad -->
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;">
-                    <div class="key" onclick="pressNum('7')">7</div>
-                    <div class="key" onclick="pressNum('8')">8</div>
-                    <div class="key" onclick="pressNum('9')">9</div>
-                    <div class="key" onclick="pressNum('4')">4</div>
-                    <div class="key" onclick="pressNum('5')">5</div>
-                    <div class="key" onclick="pressNum('6')">6</div>
-                    <div class="key" onclick="pressNum('1')">1</div>
-                    <div class="key" onclick="pressNum('2')">2</div>
-                    <div class="key" onclick="pressNum('3')">3</div>
-                    <div class="key" onclick="pressNum('0')">0</div>
-                    <div class="key" onclick="pressNum('.')">.</div>
-                    <div class="key" onclick="pressNum('-')">-</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Axis Control -->
-        <div class="jog-section">
-            <div class="axis-control">
-                <div class="axis-group">
-                    <div class="axis-label">J1</div>
-                    <div class="axis-row">
-                        <div class="axis-btn" onclick="jogAxis('J1-')">-X</div>
-                        <div class="axis-btn" onclick="jogAxis('J1+')">+X</div>
-                    </div>
-                </div>
-                <div class="axis-group">
-                    <div class="axis-label">J2</div>
-                    <div class="axis-row">
-                        <div class="axis-btn" onclick="jogAxis('J2-')">-Y</div>
-                        <div class="axis-btn" onclick="jogAxis('J2+')">+Y</div>
-                    </div>
-                </div>
-                <div class="axis-group">
-                    <div class="axis-label">J3</div>
-                    <div class="axis-row">
-                        <div class="axis-btn" onclick="jogAxis('J3-')">-Z</div>
-                        <div class="axis-btn" onclick="jogAxis('J3+')">+Z</div>
-                    </div>
-                </div>
-                <div class="axis-group">
-                    <div class="axis-label">J4</div>
-                    <div class="axis-row">
-                        <div class="axis-btn" onclick="jogAxis('J4-')">-X</div>
-                        <div class="axis-btn" onclick="jogAxis('J4+')">+X</div>
-                    </div>
-                </div>
-                <div class="axis-group">
-                    <div class="axis-label">J5</div>
-                    <div class="axis-row">
-                        <div class="axis-btn" onclick="jogAxis('J5-')">-Y</div>
-                        <div class="axis-btn" onclick="jogAxis('J5+')">+Y</div>
-                    </div>
-                </div>
-                <div class="axis-group">
-                    <div class="axis-label">J6</div>
-                    <div class="axis-row">
-                        <div class="axis-btn" onclick="jogAxis('J6-')">-Z</div>
-                        <div class="axis-btn" onclick="jogAxis('J6+')">+Z</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Speed Control -->
-            <div class="speed-control">
-                <div class="speed-label">%</div>
-                <div class="speed-btns">
-                    <div class="speed-btn" onclick="changeSpeed(-5)">-</div>
-                    <div class="speed-btn" onclick="changeSpeed(5)">+</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- COORD, STEP, HOLD, FWD/BWD -->
-        <div class="coords-grid">
-            <div class="coord-btn active" id="coordBtn" onclick="toggleCoord()">JOINT</div>
-            <div class="coord-btn" onclick="toggleStep()">STEP</div>
-            <div class="coord-btn" id="holdBtn" onclick="toggleHold()">HOLD</div>
-            <div class="coord-btn" onclick="toggleFwdBwd()">FWD/BWD</div>
-        </div>
-
-        <!-- Status Row -->
-        <div class="status-row">
-            <div class="status-item">SPEED: <span id="speedValue">100%</span></div>
-            <div class="status-item">COORD: <span id="coordValue">JOINT</span></div>
-            <div class="status-item">MODE: <span id="modeValue"> Teach</span></div>
-        </div>
-
-        <!-- Position Display -->
-        <div class="position-display">
-            <div class="pos-item">
-                <div class="pos-label">J1</div>
-                <div class="pos-value" id="j1Pos">0.000</div>
-            </div>
-            <div class="pos-item">
-                <div class="pos-label">J2</div>
-                <div class="pos-value" id="j2Pos">0.000</div>
-            </div>
-            <div class="pos-item">
-                <div class="pos-label">J3</div>
-                <div class="pos-value" id="j3Pos">0.000</div>
-            </div>
-        </div>
+    <div class="row-fkeys">
+      <div class="k" data-btn="PREV">PREV</div>
+      <div class="k" data-btn="F1">F1</div>
+      <div class="k" data-btn="F2">F2</div>
+      <div class="k" data-btn="F3">F3</div>
+      <div class="k" data-btn="F4">F4</div>
+      <div class="k" data-btn="F5">F5</div>
+      <div class="k" data-btn="NEXT">NEXT</div>
     </div>
 
-    <!-- Toast -->
-    <div class="toast" id="toast"></div>
-
-    <!-- Menu Overlay -->
-    <div class="menu-overlay" id="menuOverlay">
-        <div class="menu-title" id="menuTitle">MENU</div>
-        <div id="menuContent"></div>
-        <div class="menu-back" onclick="closeMenu()">← BACK</div>
+    <div class="row-menu-wrap">
+      <div class="teach-label">TEACH</div>
+      <div class="row-menu">
+        <div class="k k-blue" data-btn="SHIFT" data-toggle="shift">SHIFT</div>
+        <div class="k k-blue" data-btn="MENU">MENU</div>
+        <div class="k k-blue" data-btn="SELECT">SELECT</div>
+        <div class="k k-blue" data-btn="EDIT">EDIT</div>
+        <div class="k k-blue" data-btn="DATA">DATA</div>
+        <div class="k k-blue" data-btn="FCTN">FCTN</div>
+        <div class="k k-blue" data-btn="SHIFT" data-toggle="shift">SHIFT</div>
+      </div>
     </div>
 
-    <script>
-        // State
-        let state = {
-            speed: 100,
-            coord: 'JOINT',
-            step: false,
-            hold: false,
-            fwdBwd: false,
-            shift: false,
-            positions: [0, 0, 0, 0, 0, 0],
-            fault: false,
-            estop: false
-        };
+    <div class="main-area">
 
-        // Toast notification
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 1500);
-        }
+      <div class="left-block">
 
-        // E-Stop
-        document.getElementById('estop').addEventListener('click', () => {
-            state.estop = !state.estop;
-            document.getElementById('faultLed').className = state.estop ? 'led led-red' : 'led led-off';
-            document.getElementById('screenWarning').style.display = state.estop ? 'block' : 'none';
-            if (state.estop) {
-                showToast('⚠ E-STOP PRESSED');
-            } else {
-                showToast('E-STOP RELEASED');
-            }
-        });
+        <div class="led-row">
+          <div class="led"><div class="led-dot on-green" id="ledPower"></div>POWER</div>
+          <div class="led"><div class="led-dot" id="ledFault"></div>FAULT</div>
+        </div>
 
-        // Speed control
-        function changeSpeed(delta) {
-            state.speed = Math.max(0, Math.min(100, state.speed + delta));
-            document.getElementById('speedValue').textContent = state.speed + '%';
-            showToast('Speed: ' + state.speed + '%');
-        }
+        <div class="info-q-row">
+          <div class="k k-white" data-btn="INFO" style="font-style: italic; font-size: 14px;">i</div>
+          <div class="nav-row">
+            <div class="k k-nav" data-btn="LEFT">◀</div>
+            <div class="k k-nav" data-btn="UP">▲</div>
+            <div class="k k-nav" data-btn="DOWN">▼</div>
+            <div class="k k-nav" data-btn="RIGHT">▶</div>
+          </div>
+          <div class="k k-white k-q" data-btn="HELP">?</div>
+        </div>
 
-        // Coordinate system
-        function toggleCoord() {
-            const coords = ['JOINT', 'JOG', 'WORLD', 'TOOL'];
-            const idx = coords.indexOf(state.coord);
-            state.coord = coords[(idx + 1) % coords.length];
-            document.getElementById('coordValue').textContent = state.coord;
-            document.getElementById('coordBtn').textContent = state.coord;
-            showToast('COORD: ' + state.coord);
-        }
+        <div class="disp-row">
+          <div class="disp-rocker" data-btn="DISP">
+            <div class="label">DISP</div>
+            <div class="rocker"><div class="active"></div><div></div></div>
+          </div>
+        </div>
 
-        // Step mode
-        function toggleStep() {
-            state.step = !state.step;
-            document.getElementById('modeValue').textContent = state.step ? 'STEP' : ' Teach';
-            showToast('STEP: ' + (state.step ? 'ON' : 'OFF'));
-        }
+        <div class="util-row">
+          <div class="k" data-btn="RESET">RESET</div>
+          <div class="k" data-btn="BS">BACK<br>SPACE</div>
+          <div class="k" data-btn="ITEM">ITEM</div>
+          <div class="k k-white" data-btn="ENTER">ENTER</div>
+        </div>
 
-        // Hold
-        function toggleHold() {
-            state.hold = !state.hold;
-            const btn = document.getElementById('holdBtn');
-            btn.style.background = state.hold ? '#5a2a2a' : '';
-            btn.style.borderColor = state.hold ? '#8a4a4a' : '';
-            showToast('HOLD: ' + (state.hold ? 'ON' : 'OFF'));
-        }
+        <div class="numpad">
+          <div class="k" data-btn="7">7</div>
+          <div class="k" data-btn="8">8</div>
+          <div class="k" data-btn="9">9</div>
+          <div class="k" data-btn="4">4</div>
+          <div class="k" data-btn="5">5</div>
+          <div class="k" data-btn="6">6</div>
+          <div class="k" data-btn="1">1</div>
+          <div class="k" data-btn="2">2</div>
+          <div class="k" data-btn="3">3</div>
+          <div class="k" data-btn="0">0</div>
+          <div class="k" data-btn="DOT">.</div>
+          <div class="k" data-btn="MINUS">-</div>
+        </div>
 
-        // FWD/BWD
-        function toggleFwdBwd() {
-            state.fwdBwd = !state.fwdBwd;
-            showToast(state.fwdBwd ? 'FWD/BWD Mode' : 'JOG Mode');
-        }
+        <div class="diag-row">
+          <div class="k k-white" data-btn="DIAGHELP" style="font-size: 9px;">DIAG<br>HELP</div>
+          <div></div>
+          <div></div>
+        </div>
 
-        // Navigation
-        function pressNav(dir) {
-            const nav = document.getElementById('screenContent');
-            showToast('NAV: ' + dir);
-        }
+      </div>
 
-        // Help
-        function pressHelp() {
-            showToast('HELP: Press MENU for main menu');
-        }
+      <div class="axis-block">
+        <div class="k k-axis" data-btn="STEP" data-toggle="step">STEP</div>
+        <div class="k k-blue k-axis" data-jog="J1-">-X<small>(J1)</small></div>
+        <div class="k k-blue k-axis" data-jog="J1+">+X<small>(J1)</small></div>
 
-        // F keys
-        function pressFkey(key) {
-            showToast('FKEY: ' + key);
-        }
+        <div class="k k-axis" data-btn="HOLD" data-toggle="hold">HOLD</div>
+        <div class="k k-blue k-axis" data-jog="J2-">-Y<small>(J2)</small></div>
+        <div class="k k-blue k-axis" data-jog="J2+">+Y<small>(J2)</small></div>
 
-        // Menu
-        function pressMenu() {
-            showMenu('main');
-        }
+        <div class="k k-axis" data-btn="FWD">FWD</div>
+        <div class="k k-blue k-axis" data-jog="J3-">-Z<small>(J3)</small></div>
+        <div class="k k-blue k-axis" data-jog="J3+">+Z<small>(J3)</small></div>
 
-        function showMenu(type) {
-            const overlay = document.getElementById('menuOverlay');
-            const title = document.getElementById('menuTitle');
-            const content = document.getElementById('menuContent');
+        <div class="k k-axis" data-btn="BWD">BWD</div>
+        <div class="k k-blue k-axis" data-jog="J4-"><span class="hat">-X&#770;</span><small>(J4)</small></div>
+        <div class="k k-blue k-axis" data-jog="J4+"><span class="hat">+X&#770;</span><small>(J4)</small></div>
 
-            const menus = {
-                main: {
-                    title: 'SYSTEM MENU',
-                    items: [
-                        { text: '🖥️ DISPLAY', action: () => showMenu('display') },
-                        { text: '⚙️ SETUP', action: () => showMenu('setup') },
-                        { text: '📝 PROGRAM', action: () => showMenu('program') },
-                        { text: '🔧 SYSTEM', action: () => showMenu('system') },
-                        { text: '📊 STATUS', action: () => showStatus() },
-                        { text: '❓ HELP', action: () => showHelp() }
-                    ]
-                },
-                display: {
-                    title: 'DISPLAY MENU',
-                    items: [
-                        { text: '📍 POSITION', action: () => showPosition() },
-                        { text: '📋 PROGRAM', action: () => showProgram() },
-                        { text: '📈 VARIABLES', action: () => showVariables() },
-                        { text: '⚡ I/O', action: () => showIO() },
-                        { text: '◀ BACK', action: () => showMenu('main') }
-                    ]
-                },
-                setup: {
-                    title: 'SETUP MENU',
-                    items: [
-                        { text: '🖱️ JOG', action: () => showJog() },
-                        { text: '📐 FRAME', action: () => showFrame() },
-                        { text: '🔧 MASTERING', action: () => showMastering() },
-                        { text: '⚡ I/O SETUP', action: () => showIOSetup() },
-                        { text: '◀ BACK', action: () => showMenu('main') }
-                    ]
-                },
-                program: {
-                    title: 'PROGRAM MENU',
-                    items: [
-                        { text: '📝 SELECT PROGRAM', action: () => showSelect() },
-                        { text: '▶ CREATE NEW', action: () => showNew() },
-                        { text: '▶ LOAD', action: () => showLoad() },
-                        { text: '💾 SAVE', action: () => showSave() },
-                        { text: '◀ BACK', action: () => showMenu('main') }
-                    ]
-                },
-                system: {
-                    title: 'SYSTEM MENU',
-                    items: [
-                        { text: '🔄 CONFIG', action: () => showConfig() },
-                        { text: '📜 VERSION', action: () => showVersion() },
-                        { text: '🧪 DIAGNOSTICS', action: () => showDiagnostics() },
-                        { text: '◀ BACK', action: () => showMenu('main') }
-                    ]
-                }
-            };
+        <div class="k k-axis" data-btn="COORD">COORD</div>
+        <div class="k k-blue k-axis" data-jog="J5-"><span class="hat">-Y&#770;</span><small>(J5)</small></div>
+        <div class="k k-blue k-axis" data-jog="J5+"><span class="hat">+Y&#770;</span><small>(J5)</small></div>
 
-            const menu = menus[type];
-            title.textContent = menu.title;
-            content.innerHTML = menu.items.map(item =>
-                '<div class="menu-item" onclick="closeMenu(); setTimeout(() => { ' +
-                (item.action ? 'item.action();' : '') +
-                ' }, 100)">' + item.text + '</div>'
-            ).join('');
+        <div class="k k-axis" data-btn="GROUP">GROUP</div>
+        <div class="k k-blue k-axis" data-jog="J6-"><span class="hat">-Z&#770;</span><small>(J6)</small></div>
+        <div class="k k-blue k-axis" data-jog="J6+"><span class="hat">+Z&#770;</span><small>(J6)</small></div>
 
-            // Store item actions
-            content.querySelectorAll('.menu-item').forEach((el, i) => {
-                el.onclick = () => {
-                    closeMenu();
-                    setTimeout(menu.items[i].action, 100);
-                };
-            });
+        <div class="k k-axis" data-btn="SPEEDUP">+%</div>
+        <div class="k k-blue k-axis k-disabled" data-jog="J7-">-<small>(J7)</small></div>
+        <div class="k k-blue k-axis k-disabled" data-jog="J7+">+<small>(J7)</small></div>
 
-            overlay.classList.add('show');
-        }
+        <div class="k k-axis" data-btn="SPEEDDN">-%</div>
+        <div class="k k-blue k-axis k-disabled" data-jog="J8-">-<small>(J8)</small></div>
+        <div class="k k-blue k-axis k-disabled" data-jog="J8+">+<small>(J8)</small></div>
+      </div>
 
-        function closeMenu() {
-            document.getElementById('menuOverlay').classList.remove('show');
-        }
+    </div>
 
-        function showStatus() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 8px;">📊 ROBOT STATUS</div>
-                    <div style="color: #888;">Controller: R-30iA</div>
-                    <div style="color: #888;">Robot: M-10iA</div>
-                    <div style="color: #888;">Version: V8.30</div>
-                    <div style="color: #888; margin-top: 8px;">Faults: ${state.fault ? 'YES' : 'None'}</div>
-                    <div style="color: #888;">E-Stop: ${state.estop ? 'PRESSED' : 'OK'}</div>
-                    <div style="color: #888;">Mode: T1</div>
-                </div>
-            `;
-        }
+    <div style="text-align: right; font-size: 8px; color: var(--sublabel); margin-top: 6px; padding-right: 4px;">
+      GNE2 · iPendant Simulator
+    </div>
+  </div>
+</div>
 
-        function showHelp() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 8px;">❓ HELP</div>
-                    <div style="color: #888;">This is a FANUC R-30iA</div>
-                    <div style="color: #888;">Teach Pendant Simulator</div>
-                    <div style="color: #888; margin-top: 8px;">Use MENU for main menu</div>
-                    <div style="color: #888;">Use arrow keys to navigate</div>
-                    <div style="color: #888;">Press E-STOP for emergency</div>
-                </div>
-            `;
-        }
+<div class="toast" id="toast"></div>
 
-        function showPosition() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📍 JOINT POSITION</div>
-                    ${[0,1,2,3,4,5].map(i => `
-                        <div style="display: flex; justify-content: space-between; color: #0f0; margin: 2px 0;">
-                            <span>J${i+1}:</span>
-                            <span>${state.positions[i].toFixed(3)}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
+<div class="menu-overlay" id="menuOverlay">
+  <div class="menu-title" id="menuTitle">MENU</div>
+  <div id="menuContent"></div>
+  <div class="menu-back" onclick="closeMenu()">◀ BACK</div>
+</div>
 
-        function showProgram() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📋 PROGRAM</div>
-                    <div style="color: #888;">No program loaded</div>
-                    <div style="color: #888; margin-top: 5px;">Press SELECT to choose</div>
-                </div>
-            `;
-        }
+<script>
+/* FANUC iPendant Simulator — behavior */
 
-        function showVariables() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📈 VARIABLES</div>
-                    <div style="color: #888;">R[1] = 0.000</div>
-                    <div style="color: #888;">R[2] = 0.000</div>
-                    <div style="color: #888;">PR[1] = (0,0,0,0,0,0)</div>
-                </div>
-            `;
-        }
+const COORDS = ['JOINT', 'JGFRM', 'WORLD', 'TOOL', 'USER'];
+const MODES  = ['T1', 'AUTO', 'T2'];
 
-        function showIO() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">⚡ I/O STATUS</div>
-                    <div style="color: #888;">DI[1-8]: 00000000</div>
-                    <div style="color: #888;">DO[1-8]: 00000000</div>
-                    <div style="color: #888;">UI[1-8]: 00000000</div>
-                    <div style="color: #888;">UO[1-8]: 00000000</div>
-                </div>
-            `;
-        }
+const state = {
+  mode: 'T1',
+  coord: 'JOINT',
+  speedOverride: 100,
+  step: false,
+  hold: false,
+  shift: false,
+  deadmanL: false,
+  deadmanR: false,
+  fault: false,
+  estop: false,
+  group: 1,
+  positions: [0, 0, 0, 0, 0, 0],
+  cart: { x: 1500, y: 0, z: 1200, w: 0, p: 90, r: 0 },
+  jogRepeat: {},
+};
 
-        function showJog() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">🖱️ JOG SETTINGS</div>
-                    <div style="color: #888;">Coord: ${state.coord}</div>
-                    <div style="color: #888;">Speed: ${state.speed}%</div>
-                    <div style="color: #888; margin-top: 5px;">Use axis buttons</div>
-                    <div style="color: #888;">to jog robot</div>
-                </div>
-            `;
-        }
+const toastEl = document.getElementById('toast');
+let toastTimer;
+function toast(msg, duration = 1400) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), duration);
+}
 
-        function showFrame() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📐 FRAME SETUP</div>
-                    <div style="color: #888;">WORLD FRAME</div>
-                    <div style="color: #888;">TOOL FRAME</div>
-                    <div style="color: #888;">USER FRAME</div>
-                </div>
-            `;
-        }
+function deadmanHeld() { return state.deadmanL || state.deadmanR; }
 
-        function showMastering() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">🔧 MASTERING</div>
-                    <div style="color: #888;">Home search required</div>
-                    <div style="color: #888; margin-top: 5px;">Mastering done at</div>
-                    <div style="color: #888;">factory default</div>
-                </div>
-            `;
-        }
+function canJog() {
+  if (state.estop) { toast('⚠ E-STOP ACTIVE'); return false; }
+  if (state.hold)  { toast('⚠ HOLD ACTIVE');   return false; }
+  if (state.fault) { toast('⚠ FAULT — press RESET'); return false; }
+  if (!deadmanHeld()) { toast('⚠ HOLD DEADMAN TO JOG'); return false; }
+  return true;
+}
 
-        function showIOSetup() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">⚡ I/O SETUP</div>
-                    <div style="color: #888;">Configure inputs</div>
-                    <div style="color: #888;">and outputs</div>
-                </div>
-            `;
-        }
+function refreshStatus() {
+  document.getElementById('sbCoord').textContent = state.coord;
+  document.getElementById('sbSpeed').textContent = state.speedOverride + '%';
+  document.getElementById('sbMode').textContent  = state.mode;
+  document.getElementById('sbGroup').textContent = state.group;
+  document.getElementById('ledFault').className =
+    'led-dot' + (state.estop || state.fault ? ' on-red' : '');
+  document.getElementById('estopOverlay').classList.toggle('show', state.estop);
+}
 
-        function showSelect() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📝 SELECT PROGRAM</div>
-                    <div style="color: #888; margin-top: 5px;">No programs found</div>
-                    <div style="color: #888;">Create new or load</div>
-                </div>
-            `;
-        }
+function jogStep(axisSpec) {
+  const axisIdx = parseInt(axisSpec[1], 10) - 1;
+  const sign    = axisSpec[2] === '+' ? 1 : -1;
+  if (axisIdx < 0 || axisIdx > 5) return;
+  const degPerTick = 0.5 * (state.speedOverride / 100);
+  state.positions[axisIdx] += sign * degPerTick;
+  const limits = [170, 90, 160, 180, 125, 360];
+  const lim = limits[axisIdx];
+  if (state.positions[axisIdx] >  lim) state.positions[axisIdx] =  lim;
+  if (state.positions[axisIdx] < -lim) state.positions[axisIdx] = -lim;
+  refreshPositionScreen();
+}
 
-        function showNew() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📝 CREATE PROGRAM</div>
-                    <div style="color: #888;">Enter program name</div>
-                    <div style="color: #888;">using keypad</div>
-                </div>
-            `;
-        }
+function startJog(axisSpec) {
+  if (!canJog()) return;
+  if (state.step) { jogStep(axisSpec); return; }
+  if (state.jogRepeat[axisSpec]) return;
+  jogStep(axisSpec);
+  state.jogRepeat[axisSpec] = setInterval(() => {
+    if (!deadmanHeld() || state.estop || state.hold) { stopJog(axisSpec); return; }
+    jogStep(axisSpec);
+  }, 60);
+}
+function stopJog(axisSpec) {
+  if (state.jogRepeat[axisSpec]) {
+    clearInterval(state.jogRepeat[axisSpec]);
+    delete state.jogRepeat[axisSpec];
+  }
+}
+function stopAllJog() { Object.keys(state.jogRepeat).forEach(stopJog); }
 
-        function showLoad() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📂 LOAD PROGRAM</div>
-                    <div style="color: #888;">Select from list</div>
-                </div>
-            `;
-        }
+function refreshPositionScreen() { if (screenView === 'position') showPosition(); }
 
-        function showSave() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">💾 SAVE</div>
-                    <div style="color: #888;">No changes to save</div>
-                </div>
-            `;
-        }
+document.getElementById('estop').addEventListener('click', () => {
+  state.estop = !state.estop;
+  document.getElementById('estop').classList.toggle('pressed', state.estop);
+  stopAllJog();
+  toast(state.estop ? '⚠ E-STOP PRESSED' : 'E-STOP RELEASED — RESET faults', 2000);
+  refreshStatus();
+});
 
-        function showConfig() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">🔄 CONFIGURATION</div>
-                    <div style="color: #888;">Axis: 6</div>
-                    <div style="color: #888;">Payload: Default</div>
-                </div>
-            `;
-        }
+const ksEl = document.getElementById('keyswitch');
+const ksLabel = document.getElementById('keyswitchLabel');
+ksEl.addEventListener('click', () => {
+  const idx = MODES.indexOf(state.mode);
+  state.mode = MODES[(idx + 1) % MODES.length];
+  ksEl.classList.remove('pos-t1', 'pos-auto', 'pos-t2');
+  ksEl.classList.add('pos-' + state.mode.toLowerCase());
+  ksLabel.textContent = state.mode;
+  toast('MODE: ' + state.mode);
+  refreshStatus();
+});
 
-        function showVersion() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📜 VERSION</div>
-                    <div style="color: #888;">R-30iA</div>
-                    <div style="color: #888;">V8.30.00</div>
-                    <div style="color: #888;">© FANUC</div>
-                </div>
-            `;
-        }
+function wireDeadman(id, prop) {
+  const el = document.getElementById(id);
+  const press   = () => { state[prop] = true;  el.classList.add('held'); };
+  const release = () => { state[prop] = false; el.classList.remove('held'); if (!deadmanHeld()) stopAllJog(); };
+  el.addEventListener('pointerdown', press);
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointerleave', release);
+  el.addEventListener('pointercancel', release);
+}
+wireDeadman('deadmanL', 'deadmanL');
+wireDeadman('deadmanR', 'deadmanR');
 
-        function showDiagnostics() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">🧪 DIAGNOSTICS</div>
-                    <div style="color: #0f0;">All systems OK</div>
-                    <div style="color: #888; margin-top: 5px;">Memory: 85% free</div>
-                    <div style="color: #888;">Battery: OK</div>
-                </div>
-            `;
-        }
+document.querySelectorAll('[data-jog]').forEach(el => {
+  const spec = el.dataset.jog;
+  el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('down'); startJog(spec); });
+  el.addEventListener('pointerup',    () => { el.classList.remove('down'); stopJog(spec); });
+  el.addEventListener('pointerleave', () => { el.classList.remove('down'); stopJog(spec); });
+  el.addEventListener('pointercancel',() => { el.classList.remove('down'); stopJog(spec); });
+});
 
-        function pressSelect() {
-            showSelect();
-        }
+document.querySelectorAll('[data-btn]').forEach(el => {
+  el.addEventListener('click', () => handleBtn(el.dataset.btn, el));
+});
 
-        function pressEdit() {
-            document.getElementById('screenContent').innerHTML = `
-                <div style="font-size: 11px;">
-                    <div style="color: #0ff; margin-bottom: 5px;">📝 EDIT MODE</div>
-                    <div style="color: #888;">Select a program first</div>
-                </div>
-            `;
-        }
+function handleBtn(btn, el) {
+  switch (btn) {
+    case 'MENU':   showMenu('main'); break;
+    case 'SELECT': showMenu('select'); break;
+    case 'EDIT':   showEdit(); break;
+    case 'DATA':   showData(); break;
+    case 'FCTN':   showMenu('fctn'); break;
+    case 'SHIFT':
+      state.shift = !state.shift;
+      document.querySelectorAll('[data-toggle="shift"]').forEach(s => s.classList.toggle('down', state.shift));
+      toast('SHIFT: ' + (state.shift ? 'ON' : 'OFF'));
+      break;
+    case 'COORD':
+      if (state.shift) {
+        const i = COORDS.indexOf(state.coord);
+        state.coord = COORDS[(i - 1 + COORDS.length) % COORDS.length];
+      } else {
+        const i = COORDS.indexOf(state.coord);
+        state.coord = COORDS[(i + 1) % COORDS.length];
+      }
+      toast('COORD: ' + state.coord);
+      refreshStatus();
+      break;
+    case 'GROUP':
+      state.group = state.group === 1 ? 2 : 1;
+      toast('GROUP: ' + state.group);
+      refreshStatus();
+      break;
+    case 'STEP':
+      state.step = !state.step;
+      el.classList.toggle('down', state.step);
+      toast('STEP: ' + (state.step ? 'ON' : 'OFF (CONTINUOUS)'));
+      break;
+    case 'HOLD':
+      state.hold = !state.hold;
+      el.classList.toggle('down', state.hold);
+      if (state.hold) stopAllJog();
+      toast('HOLD: ' + (state.hold ? 'ON' : 'OFF'));
+      break;
+    case 'FWD':
+      if (!state.shift) { toast('FWD requires SHIFT'); break; }
+      toast('▶ PROGRAM FWD');
+      break;
+    case 'BWD':
+      if (!state.shift) { toast('BWD requires SHIFT'); break; }
+      toast('◀ PROGRAM BWD');
+      break;
+    case 'SPEEDUP': bumpSpeed(+5); break;
+    case 'SPEEDDN': bumpSpeed(-5); break;
+    case 'RESET':
+      state.fault = false;
+      toast('FAULTS RESET');
+      refreshStatus();
+      break;
+    case 'BS':     toast('BACK SPACE'); break;
+    case 'ITEM':   toast('ITEM — jump to line'); break;
+    case 'ENTER':  toast('ENTER'); break;
+    case 'INFO':   toast('i — alarms / info'); break;
+    case 'HELP':   toast('? — help'); break;
+    case 'DIAGHELP': toast('DIAG/HELP'); break;
+    case 'DISP':   toast('DISP — switch layout'); break;
+    case 'PREV':   toast('◀ PREV screen'); break;
+    case 'NEXT':   toast('▶ NEXT screen'); break;
+    case 'F1': case 'F2': case 'F3': case 'F4': case 'F5':
+      toast('Soft key ' + btn); break;
+    case '0': case '1': case '2': case '3': case '4':
+    case '5': case '6': case '7': case '8': case '9':
+    case 'DOT': case 'MINUS':
+      toast('KEY ' + (btn === 'DOT' ? '.' : btn === 'MINUS' ? '-' : btn));
+      break;
+  }
+}
 
-        // Jog Axis
-        function jogAxis(axis) {
-            if (state.estop) {
-                showToast('⚠ E-STOP ACTIVE');
-                return;
-            }
-            if (state.hold) {
-                showToast('⚠ HOLD ACTIVE');
-                return;
-            }
+function bumpSpeed(delta) {
+  state.speedOverride = Math.max(0, Math.min(100, state.speedOverride + delta));
+  toast('SPEED: ' + state.speedOverride + '%');
+  refreshStatus();
+}
 
-            const idx = parseInt(axis[1]) - 1;
-            const delta = (axis.endsWith('+') ? 1 : -1) * state.speed * 0.001;
-            state.positions[idx] += delta;
+let screenView = 'home';
+const body = document.getElementById('screenBody');
+const fk = [1,2,3,4,5].map(i => document.getElementById('fk' + i));
+function setSoftKeys(arr) { for (let i = 0; i < 5; i++) fk[i].textContent = arr[i] || '—'; }
 
-            const posEl = document.getElementById('j' + (idx + 1) + 'Pos');
-            if (posEl) posEl.textContent = state.positions[idx].toFixed(3);
+function showPosition() {
+  screenView = 'position';
+  if (state.coord === 'JOINT') {
+    body.innerHTML = `
+      <div style="color: var(--screen-accent); margin-bottom: 4px;">JOINT POSITION</div>
+      ${state.positions.map((v, i) => `
+        <div style="display:flex;justify-content:space-between;color:#c8ffd0;">
+          <span>J${i+1}:</span><span>${v.toFixed(3)}°</span>
+        </div>`).join('')}
+    `;
+  } else {
+    body.innerHTML = `
+      <div style="color: var(--screen-accent); margin-bottom: 4px;">CARTESIAN POSITION (${state.coord})</div>
+      <div style="display:flex;justify-content:space-between;"><span>X:</span><span>${state.cart.x.toFixed(2)} mm</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Y:</span><span>${state.cart.y.toFixed(2)} mm</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>Z:</span><span>${state.cart.z.toFixed(2)} mm</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>W:</span><span>${state.cart.w.toFixed(2)}°</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>P:</span><span>${state.cart.p.toFixed(2)}°</span></div>
+      <div style="display:flex;justify-content:space-between;"><span>R:</span><span>${state.cart.r.toFixed(2)}°</span></div>
+    `;
+  }
+  setSoftKeys(['JOINT', 'USER', 'WORLD', '', '>']);
+}
 
-            showToast(axis + ' @ ' + state.speed + '%');
-        }
+function showStatus() {
+  screenView = 'status';
+  body.innerHTML = `
+    <div style="color: var(--screen-accent); margin-bottom: 4px;">ROBOT STATUS</div>
+    <div>Controller : R-30iA</div>
+    <div>Robot      : R-2000iC/165F</div>
+    <div>Version    : V8.30P/15</div>
+    <div>Servo      : ${state.estop ? 'OFF' : 'READY'}</div>
+    <div>Faults     : ${state.fault ? 'YES' : 'NONE'}</div>
+    <div>E-Stop     : ${state.estop ? 'PRESSED' : 'OK'}</div>
+    <div>Mode       : ${state.mode}</div>
+    <div>Deadman    : ${deadmanHeld() ? 'HELD' : 'RELEASED'}</div>
+  `;
+  setSoftKeys(['DETAIL', 'ALARM', 'MEMORY', '', '>']);
+}
+function showEdit()  { screenView = 'edit';  body.innerHTML = '<div style="color: var(--screen-accent);">EDIT</div><div>No program loaded.</div><div>Press SELECT to choose program.</div>'; setSoftKeys(['POINT','','','','>']); }
+function showData()  { screenView = 'data';  body.innerHTML = `
+    <div style="color: var(--screen-accent); margin-bottom:4px;">DATA / REGISTERS</div>
+    <div>R[1]  = 0.000</div>
+    <div>R[2]  = 0.000</div>
+    <div>R[3]  = 0.000</div>
+    <div>PR[1] = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)</div>
+    <div>PR[2] = —</div>`;
+  setSoftKeys(['TYPE','','','','>']);
+}
 
-        // Number input
-        let numBuffer = '';
-        function pressNum(num) {
-            numBuffer += num;
-            showToast('INPUT: ' + numBuffer);
-        }
+const menus = {
+  main: {
+    title: 'SYSTEM MENU',
+    items: [
+      ['UTILITIES',   () => toast('UTILITIES')],
+      ['TEST CYCLE',  () => toast('TEST CYCLE')],
+      ['MANUAL FCTNS',() => toast('MANUAL FCTNS')],
+      ['ALARM',       () => { state.fault = false; showStatus(); }],
+      ['I/O',         () => { screenView='io'; body.innerHTML='<div style="color:var(--screen-accent);">I/O</div><div>DI[1-8]: 00000000</div><div>DO[1-8]: 00000000</div><div>UI[1-8]: 00000000</div><div>UO[1-8]: 00000000</div>'; setSoftKeys(['IN/OUT','','CONFIG','','>']); }],
+      ['SETUP',       () => showMenu('setup')],
+      ['FILE',        () => toast('FILE')],
+      ['USER',        () => toast('USER')],
+      ['SELECT',      () => showMenu('select')],
+      ['EDIT',        () => showEdit()],
+      ['DATA',        () => showData()],
+      ['STATUS',      () => showStatus()],
+      ['POSITION',    () => showPosition()],
+      ['SYSTEM',      () => showMenu('system')],
+    ],
+  },
+  setup: {
+    title: 'SETUP',
+    items: [
+      ['FRAMES',      () => toast('FRAMES')],
+      ['MASTERING',   () => toast('MASTERING')],
+      ['GENERAL',     () => toast('GENERAL')],
+      ['COORD SYSTEM',() => { const i = COORDS.indexOf(state.coord); state.coord = COORDS[(i+1)%COORDS.length]; refreshStatus(); toast('COORD: '+state.coord); }],
+      ['◀ BACK',      () => showMenu('main')],
+    ],
+  },
+  select: {
+    title: 'SELECT PROGRAM',
+    items: [
+      ['— No programs —', () => toast('No programs stored')],
+      ['CREATE NEW',      () => toast('CREATE — enter name via keypad')],
+      ['◀ BACK',          () => showMenu('main')],
+    ],
+  },
+  fctn: {
+    title: 'FCTN',
+    items: [
+      ['ABORT ALL',       () => { stopAllJog(); toast('ABORT ALL'); }],
+      ['DISABLE FWD/BWD', () => toast('DISABLE FWD/BWD')],
+      ['CHANGE GROUP',    () => { state.group = state.group===1?2:1; refreshStatus(); toast('GROUP: '+state.group); }],
+      ['TOGGLE SUBGROUP', () => toast('SUBGROUP')],
+      ['RELEASE WAIT',    () => toast('RELEASE WAIT')],
+      ['◀ BACK',          () => showMenu('main')],
+    ],
+  },
+  system: {
+    title: 'SYSTEM',
+    items: [
+      ['VARIABLES',    () => toast('VARIABLES')],
+      ['CONFIG',       () => toast('CONFIG')],
+      ['VERSION',      () => showStatus()],
+      ['DIAGNOSTICS',  () => toast('DIAGNOSTICS')],
+      ['◀ BACK',       () => showMenu('main')],
+    ],
+  },
+};
 
-        // Keyboard support
-        document.addEventListener('keydown', (e) => {
-            const key = e.key.toUpperCase();
-            const numMap = {'0':'0','1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9','-':'-','.':'.'};
-            if (numMap[e.key]) {
-                pressNum(numMap[e.key]);
-                e.preventDefault();
-            }
-            if (key === 'ENTER') document.querySelector('.key-green')?.click();
-            if (key === 'ESCAPE') closeMenu();
-        });
-    </script>
+function showMenu(which) {
+  const m = menus[which];
+  if (!m) return;
+  document.getElementById('menuTitle').textContent = m.title;
+  const c = document.getElementById('menuContent');
+  c.innerHTML = '';
+  m.items.forEach(([label, fn]) => {
+    const el = document.createElement('div');
+    el.className = 'menu-item';
+    el.textContent = label;
+    el.addEventListener('click', () => { closeMenu(); setTimeout(fn, 80); });
+    c.appendChild(el);
+  });
+  document.getElementById('menuOverlay').classList.add('show');
+}
+function closeMenu() {
+  document.getElementById('menuOverlay').classList.remove('show');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+refreshStatus();
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopAllJog(); });
+window.addEventListener('blur', stopAllJog);
+</script>
 </body>
 </html>

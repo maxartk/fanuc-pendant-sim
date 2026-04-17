@@ -1,83 +1,107 @@
-# FANUC R-30iA Teach Pendant Simulator
+# FANUC iPendant Simulator
 
-Симулятор пенданта навчання FANUC R-30iA для Android.
+Симулятор навчального пенданта FANUC iPendant (контролер **R-30iA / R-30iB**, маніпулятор **R-2000iC**) для Android і браузера.
+
+Розкладка й стиль максимально наближені до реального iPendant моделі `GNE2`.
 
 ## 📱 Завантажити APK
 
-APK автоматично будується через GitHub Actions. Завантажте останню версію з:
+APK автоматично збирається через GitHub Actions. Завантаж останній білд:
 
-**[Releases](https://github.com/YOUR_USERNAME/fanuc-pendant-sim/releases)**
+**[Releases](https://github.com/maxartk/fanuc-pendant-sim/releases)**
 
-Або білд з Actions:
-1. Перейдіть на вкладку **Actions**
-2. Виберіть **Build Android APK**
-3. Клікніть на артефакт **fanuc-pendant-apk**
+Або артефакт з Actions:
 
-## 🎮 Функції
+1. Перейди на вкладку **Actions**
+2. Вибери останній запуск **Build Android APK**
+3. Завантаж артефакт **fanuc-pendant-apk**
 
-- **Повний інтерфейс** R-30iA пенданта
-- **Екран** з меню (DISPLAY, SETUP, PROGRAM, SYSTEM)
-- **Всі кнопки**: F1-F5, SHIFT, MENU, SELECT, EDIT, DATA, FCTN
-- **Навігація**: стрілки, ENTER, BACK SPACE
-- **Цифрова клавіатура**
-- **Управління осями J1-J6** з регулюванням швидкості
-- **E-STOP** кнопка
-- **COORD, STEP, HOLD, FWD/BWD** перемикачі
-- **Відображення положення** суглобів в реальному часі
+## 🎮 Що зроблено у v2
+
+Оновлений layout під реальний iPendant (див. фото референс):
+
+- **Ключ-перемикач режимів** T1 / AUTO / T2 (замість простого ON/OFF)
+- **Великий горизонтальний TFT-екран** з landscape layout, status bar (COORD / SPD / MODE / GRP), soft-keys під F1-F5
+- **Правий блок осей** 3×8: `STEP / HOLD / FWD / BWD / COORD / GROUP / +% / -%` + парами `-J1/+J1 ... -J8/+J8`
+- **Подвійне маркування осей**: `-X (J1)`, `-X̂ (J4)` — у JOINT coord працюють J-підписи, у WORLD/USER/TOOL — X/Y/Z + X̂/Ŷ/Ẑ (обертання)
+- **Віртуальні DEADMAN-кнопки** зліва/справа (на реальному пенданті вони на задній стороні). Без утримання DEADMAN jog заблокований
+- **Фізичні LED** POWER / FAULT на корпусі
+- **Окрема `?` HELP** кнопка (не в центрі навігаційного хреста, як було)
+- **Навігація** `◀ ▲ ▼ ▶` горизонтально
+- **DISP** як rocker-перемикач
+- **DIAG/HELP** знизу зліва
+- Надпис **TEACH** над блоком SELECT/EDIT/DATA
+- Фірмові кольори: бежева панель, сині кнопки навігації/осей, сірі службові
+- **Jog реально рухає позиції** J1-J6 (hold-to-jog через `pointerdown/pointerup`) з урахуванням speed override і STEP/CONTINUOUS, з обмеженнями за осями
 
 ## 🕹️ Керування
 
-| Кнопка | Опис |
-|--------|------|
-| MENU | Головне меню |
-| SELECT | Вибір програми |
-| EDIT | Режим редагування |
-| DISP | Дисплей |
-| RESET | Скидання помилок |
-| E-STOP | Аварійна зупинка |
-| JOINT/JOG/WORLD/TOOL | Система координат |
-| STEP | Покроковий режим |
-| HOLD | Пауза |
-| FWD/BWD | Вперед/Назад |
+| Елемент | Поведінка |
+| --- | --- |
+| Keyswitch | Клік — цикл T1 → AUTO → T2 |
+| E-STOP | Тогл, при натиску блокується будь-який рух |
+| DEADMAN (L/R) | Треба тримати для jog |
+| SHIFT | Тогл (підсвічується) |
+| MENU | Відкриває System Menu |
+| SELECT / EDIT / DATA / FCTN | Відповідні екрани й меню |
+| COORD | Цикл JOINT → JGFRM → WORLD → TOOL → USER (SHIFT+COORD — назад) |
+| GROUP | Перемикає group 1 / 2 |
+| STEP | Continuous ↔ Step jog |
+| HOLD | Призупиняє jog |
+| FWD / BWD | Потребує SHIFT |
+| +% / -% | Override швидкості ±5% |
+| RESET | Скидає FAULT |
+| Осі (+/-) | Hold-to-jog, тільки якщо DEADMAN held і нема E-STOP/HOLD/FAULT |
 
-## 🔧 Структура проекту
+## 🔧 Структура
 
 ```
 fanuc-pendant-sim/
-├── index.html          # Головний HTML файл
-├── www/                # Веб- assets (копія index.html)
-├── capacitor.config.json
+├── index.html          # Основний UI
+├── www/index.html      # Копія для Capacitor
 ├── package.json
-├── .github/
-│   └── workflows/
-│       └── build.yml   # GitHub Actions для збірки APK
+├── .github/workflows/build.yml
 └── README.md
 ```
 
 ## 🏗️ Збірка
 
-### Веб-версія (локально)
+### Веб (локально)
 
+Відкрий `index.html` у браузері — без збірки.
+
+Або через Capacitor dev-server:
 ```bash
 npm install
 npx cap serve
 ```
 
-### Android APK (через GitHub Actions)
+### Android APK (GitHub Actions)
 
-Просто пуш в main — APK автоматично збирається!
+Пуш у `main` — APK збереться автоматично в Actions.
 
-### Локальна збірка Android (потрібен Android SDK)
+### Локальна Android-збірка
 
 ```bash
 npm install
 npx cap add android
 npx cap sync android
 cd android
+chmod +x gradlew
 ./gradlew assembleDebug
 ```
 
-APK буде в: `android/app/build/outputs/apk/debug/app-debug.apk`
+Готовий APK: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+## 🧭 Що ще можна додати (roadmap)
+
+- Прямий/зворотний TP-редактор (J P[i] 100% FINE, L P[i] 500mm/sec CNT50)
+- Справжню пряму кінематику для CARTESIAN view (зараз placeholder)
+- Збереження програм у localStorage
+- Vibration haptic на натискання (`navigator.vibrate(10)` через Capacitor)
+- Alarm log з кодами (SRVO, INTP, SYST)
+- User Frame / Tool Frame setup wizards
+- Підписаний release APK (keystore у GitHub Secrets)
 
 ## 📄 Ліцензія
 
