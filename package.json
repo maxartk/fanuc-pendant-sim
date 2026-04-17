@@ -1,0 +1,13 @@
+{
+  "name": "fanuc-pendant-sim",
+  "version": "1.0.0",
+  "description": "FANUC R-30iA Teach Pendant Simulator for Android",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx cap serve",
+    "build": "npx cap sync android"
+  },
+  "keywords": ["fanuc", "robot", "pendant", "simulator"],
+  "author": "",
+  "license": "MIT"
+}
