@@ -812,6 +812,24 @@ const state = {
   uIn:  new Array(32).fill(0),
   uOut: new Array(32).fill(0),
   ioPage: 'DO',
+
+  // programs (TP files)
+  programs: [
+    { name: 'HOME.TP', lines: 5, date: '10-APR-26' },
+    { name: 'SAMPLE1.TP', lines: 12, date: '10-APR-26' },
+    { name: 'TEST.TP', lines: 8, date: '15-APR-26' },
+  ],
+  currentProgram: null,
+  editLine: 0,
+  tpLines: null,
+  tpUndoStack: [],
+
+  // DISP split screen
+  dispSplit: false,
+  dispPage: 'position',
+
+  // system variables
+  sysVars: { 1: 0, 2: 1, 3: 100, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
 };
 
 /* ---------- Toast ---------- */
@@ -1383,9 +1401,63 @@ const PAGES = {
   testCycle:   stub('TEST CYCLE',   'Cycle test (iter 4).'),
   manualFctns: stub('MANUAL FCTNS', 'Macro call (iter 4).'),
   userMenu:    stub('USER',         'User menu (iter 4).'),
-  select:      stub('SELECT',       'Program list (iter 3).'),
-  edit:        stub('EDIT',         'TP editor (iter 3).'),
-  system:      stub('SYSTEM',       'System variables (iter 4).'),
+  select: {
+    title: 'SELECT',
+    subtitle: 'Programs',
+    custom: () => renderPrograms(),
+    navCount: () => state.programs.length,
+    softKeys: ['CREATE', 'COPY', 'DEL', 'DETAIL', '>'],
+    onF: (i) => {
+      if (i === 0) createProgram();
+      else if (i === 1) copyProgram();
+      else if (i === 2) deleteProgram();
+      else if (i === 3) viewProgramDetail();
+    },
+    onEnter: (i) => {
+      if (state.programs[i]) {
+        state.currentProgram = state.programs[i].name;
+        goPage('edit');
+      }
+    },
+    hint: 'ENTER to edit | F1 CREATE | F2 COPY | F3 DEL',
+  },
+  edit: {
+    title: () => 'EDIT ' + (state.currentProgram || '—none—'),
+    subtitle: () => state.editLine ? 'Line ' + state.editLine : 'Ready',
+    custom: () => renderTPProgram(),
+    navCount: () => (state.tpLines ? state.tpLines.length : 1),
+    softKeys: ['INSERT', 'MODIFY', 'DEL', 'UNDO', '>'],
+    onF: (i) => {
+      if (i === 0) insertTPLine();
+      else if (i === 1) modifyTPLine();
+      else if (i === 2) deleteTPLine();
+      else if (i === 3) undoTPLine();
+    },
+    onEnter: (i) => editTPLine(i),
+    hint: 'ENTER edit line | F1 INSERT | F2 MODIFY | F3 DEL',
+  },
+  system: {
+    title: 'SYSTEM',
+    subtitle: 'Variables',
+    rows: () => [
+      ' 1  $SYSTEM[1]  = ' + state.sysVars[1],
+      ' 2  $SYSTEM[2]  = ' + state.sysVars[2],
+      ' 3  $SYSTEM[3]  = ' + state.sysVars[3],
+      ' 4  $SYSTEM[4]  = ' + state.sysVars[4],
+      ' 5  $SYSTEM[5]  = ' + state.sysVars[5],
+      ' 6  $SYSTEM[6]  = ' + state.sysVars[6],
+      ' 7  $SYSTEM[7]  = ' + state.sysVars[7],
+      ' 8  $SYSTEM[8]  = ' + state.sysVars[8],
+      ' 9  $SYSTEM[9]  = ' + state.sysVars[9],
+      ' 0  --NEXT--',
+    ],
+    softKeys: ['', '', '', '', '>'],
+    onEnter: (i) => {
+      if (i === 9) toast('Page 2 (iter 5)');
+      else startEdit({ target: { kind: 'sysVar', idx: i+1 }, label: '$SYSTEM[' + (i+1) + '] =', buffer: String(state.sysVars[i+1] || 0) });
+    },
+    hint: 'ENTER to edit value',
+  },
 
   alarm: {
     title: 'ALARM',
@@ -1649,6 +1721,12 @@ function commitEdit() {
     if (!isNaN(val) && e.target.kind === 'numReg') {
       state.numReg[e.target.idx] = val;
       toast('R[' + (e.target.idx + 1) + '] = ' + val);
+    } else if (e.target.kind === 'sysVar') {
+      state.sysVars[e.target.idx] = val;
+      toast('$SYSTEM[' + e.target.idx + '] = ' + val);
+    } else if (e.target.kind === 'tpLine') {
+      state.tpLines[e.target.idx] = '  ' + (e.target.idx+1) + ': ' + (e.buffer || 'NOP ;');
+      toast('Line ' + (e.target.idx+1) + ' modified');
     } else {
       toast('Invalid entry');
     }
@@ -1695,6 +1773,73 @@ function stub(title, msg) {
 }
 
 function fmt(v) { return (v >= 0 ? ' ' : '') + v.toFixed(3); }
+
+function renderPrograms() {
+  let html = '<div class="pg-section">TP PROGRAMS</div><div class="pg-list">';
+  state.programs.forEach((p, i) => {
+    const sel = i === state.cursor ? ' sel' : '';
+    html += '<div class="pg-row'+sel+'"><span> '+String(i+1).padStart(2)+'  '+p.name.padEnd(16).slice(0,16)+'  '+String(p.lines).padStart(4)+' L  '+p.date+'</span></div>';
+  });
+  html += '</div>'; return html;
+}
+
+function createProgram() {
+  let name = 'NEWPROG.TP', i = 1;
+  while (state.programs.some(p => p.name === name)) { name = 'NEWPROG' + i + '.TP'; i++; }
+  state.programs.push({ name, lines: 0, date: todayStr() });
+  toast('Created ' + name); renderPage();
+}
+
+function copyProgram() {
+  const p = state.programs[state.cursor]; if (!p) return;
+  let name = 'COPY_' + p.name, i = 1;
+  while (state.programs.some(pr => pr.name === name)) { name = 'COPY' + i + '_' + p.name; i++; }
+  state.programs.push({ name, lines: p.lines, date: todayStr() });
+  toast('Copied -> ' + name); renderPage();
+}
+
+function deleteProgram() {
+  const p = state.programs[state.cursor]; if (!p) return;
+  state.programs.splice(state.cursor, 1);
+  state.cursor = Math.max(0, state.cursor - 1);
+  toast('Deleted ' + p.name); renderPage();
+}
+
+function renderTPProgram() {
+  if (!state.tpLines) state.tpLines = ['/PROG  HOME','/ATTR','  1: J P[1] 100% ;','  2: L P[2] 500mm/sec ;','  3: END ;'];
+  let html = '<div class="pg-section">TP PROGRAM</div><div class="pg-list">';
+  state.tpLines.forEach((line, i) => {
+    const sel = i === state.cursor ? ' sel' : '';
+    html += '<div class="pg-row'+sel+'"><span>'+String(i+1).padStart(4)+': '+line.substring(0,45)+'</span></div>';
+  });
+  html += '</div>'; return html;
+}
+
+function insertTPLine() {
+  if (!state.tpLines) state.tpLines = [];
+  state.tpUndoStack.push(state.tpLines.slice());
+  state.tpLines.splice(state.cursor+1, 0, '  '+state.tpLines.length+': NOP ;');
+  toast('Line inserted'); renderPage();
+}
+
+function deleteTPLine() {
+  if (!state.tpLines || !state.tpLines.length) return;
+  state.tpUndoStack.push(state.tpLines.slice());
+  state.tpLines.splice(state.cursor, 1);
+  state.cursor = Math.max(0, state.cursor - 1);
+  toast('Line deleted'); renderPage();
+}
+
+function undoTPLine() {
+  if (!state.tpUndoStack.length) { toast('Nothing to undo'); return; }
+  state.tpLines = state.tpUndoStack.pop();
+  toast('Undo'); renderPage();
+}
+
+function toggleDispSplit() {
+  state.dispSplit = !state.dispSplit;
+  toast(state.dispSplit ? 'DISP: Split ON' : 'DISP: Full screen');
+}
 
 /* =====================================================================
    BUTTON HANDLING
@@ -1820,7 +1965,7 @@ function handleBtn(btn, el) {
     case 'INFO':  goPage('alarm'); break;
     case 'HELP':  toast('? HELP — context help on ' + state.page); break;
     case 'DIAGHELP': toast('DIAG/HELP'); break;
-    case 'DISP':  toast('DISP — split screen (iteration 4)'); break;
+    case 'DISP': toggleDispSplit(); break;
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9': {
       if (state.editing) {
