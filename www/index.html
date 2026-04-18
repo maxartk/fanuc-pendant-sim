@@ -46,13 +46,13 @@
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding: 6px;
+    padding: 2px;
   }
 
   .pendant {
     background: linear-gradient(180deg, var(--case-top) 0%, var(--case-mid) 45%, var(--case-dark) 100%);
-    border-radius: 32px 32px 22px 22px;
-    padding: 14px 14px 22px 14px;
+    border-radius: 20px 20px 14px 14px;
+    padding: 6px 6px 10px 6px;
     max-width: 540px;
     width: 100%;
     box-shadow:
@@ -64,15 +64,15 @@
 
   .top-row {
     display: grid;
-    grid-template-columns: 80px 1fr 80px;
+    grid-template-columns: 70px 1fr 70px;
     align-items: center;
-    padding: 6px 6px 12px 6px;
-    gap: 8px;
+    padding: 2px 4px 6px 4px;
+    gap: 6px;
   }
 
-  .keyswitch-holder { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .keyswitch-holder { display: flex; flex-direction: column; align-items: center; gap: 1px; }
   .keyswitch {
-    width: 54px; height: 54px; border-radius: 50%;
+    width: 42px; height: 42px; border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #2a2a2a, #0a0a0a);
     border: 3px solid #1a1a1a;
     position: relative; cursor: pointer;
@@ -102,7 +102,7 @@
 
   .estop-holder { display: flex; justify-content: center; }
   .estop {
-    width: 58px; height: 58px; border-radius: 50%;
+    width: 46px; height: 46px; border-radius: 50%;
     background: radial-gradient(circle at 30% 25%, #ff4a4a, var(--estop-red) 55%, #7a0000);
     border: 5px solid var(--estop-ring);
     cursor: pointer;
@@ -122,13 +122,13 @@
   }
 
   .screen-frame {
-    background: #1a1a1a; border-radius: 8px;
-    padding: 10px; margin: 0 6px 14px 6px;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.7);
+    background: #1a1a1a; border-radius: 6px;
+    padding: 5px; margin: 0 3px 6px 3px;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.7);
   }
   .screen {
-    background: var(--screen-bg); border-radius: 4px;
-    padding: 0; min-height: 190px;
+    background: var(--screen-bg); border-radius: 3px;
+    padding: 0; min-height: 150px;
     font-family: 'Courier New', monospace;
     color: var(--screen-fg);
     display: flex; flex-direction: column;
@@ -300,18 +300,18 @@
   @keyframes blink { 50% { opacity: 0.3; } }
 
   .key-panel {
-    background: var(--panel); border-radius: 6px;
-    padding: 10px 8px; border: 1px solid var(--panel-edge);
+    background: var(--panel); border-radius: 5px;
+    padding: 5px 4px; border: 1px solid var(--panel-edge);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.3);
   }
 
   .row-fkeys {
     display: grid;
     grid-template-columns: 0.9fr repeat(5, 1fr) 0.9fr;
-    gap: 4px; margin-bottom: 6px;
+    gap: 3px; margin-bottom: 3px;
   }
 
-  .row-menu-wrap { margin-bottom: 10px; }
+  .row-menu-wrap { margin-bottom: 5px; }
   .teach-label {
     text-align: center; font-size: 8px; font-weight: 700;
     letter-spacing: 4px; color: var(--label); margin-bottom: 2px;
@@ -326,16 +326,19 @@
   .row-menu {
     display: grid;
     grid-template-columns: 1.1fr repeat(5, 1fr) 1.1fr;
-    gap: 4px;
+    gap: 3px;
   }
 
   .main-area {
     display: grid;
-    grid-template-columns: 1fr 200px;
-    gap: 8px; align-items: start;
+    grid-template-columns: 1fr 165px;
+    gap: 4px; align-items: start;
   }
-  @media (max-width: 440px) {
-    .main-area { grid-template-columns: 1fr 170px; }
+  @media (max-width: 420px) {
+    .main-area { grid-template-columns: 1fr 150px; }
+  }
+  @media (max-width: 380px) {
+    .main-area { grid-template-columns: 1fr 140px; }
   }
 
   .left-block { display: flex; flex-direction: column; gap: 5px; }
@@ -371,16 +374,16 @@
 
   .k {
     background: linear-gradient(180deg, #f0ece0, var(--key-gray) 40%, var(--key-gray-edge));
-    border: 1px solid #8a8478; border-radius: 4px;
+    border: 1px solid #8a8478; border-radius: 3px;
     color: var(--label);
-    font-size: 10px; font-weight: 700;
+    font-size: 9px; font-weight: 700;
     cursor: pointer;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    min-height: 32px; padding: 2px 4px;
+    min-height: 26px; padding: 1px 2px;
     text-align: center;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.2);
-    line-height: 1.1;
+    line-height: 1.05;
     transition: transform 0.05s, box-shadow 0.05s;
   }
   .k:active, .k.down {
@@ -403,9 +406,9 @@
   }
   .k-blue small { color: #d0e0f0; }
 
-  .k-nav { font-size: 15px; min-height: 36px; }
-  .k-q { color: #c80000; font-size: 14px; }
-  .k-axis { min-height: 38px; font-size: 11px; }
+  .k-nav { font-size: 14px; min-height: 28px; }
+  .k-q { color: #c80000; font-size: 13px; }
+  .k-axis { min-height: 30px; font-size: 10px; }
   .k-disabled { opacity: 0.35; pointer-events: none; }
 
   .disp-rocker {
@@ -471,19 +474,82 @@
 
   .deadman-wrap {
     display: flex; justify-content: space-between;
-    padding: 6px 6px 2px 6px; gap: 8px;
+    padding: 2px 2px 2px 2px; gap: 6px;
   }
   .deadman {
-    flex: 1; padding: 6px;
+    flex: 1; padding: 3px;
     background: linear-gradient(180deg, #666, #333);
-    border: 2px solid #222; border-radius: 6px;
-    color: #eee; font-size: 10px; font-weight: 700;
-    text-align: center; cursor: pointer; letter-spacing: 1px;
+    border: 1px solid #222; border-radius: 5px;
+    color: #eee; font-size: 9px; font-weight: 700;
+    text-align: center; cursor: pointer; letter-spacing: 0.5px;
   }
   .deadman.held {
     background: linear-gradient(180deg, #3a7a3a, #1a4a1a);
     border-color: #0a2a0a; color: #aaffaa;
   }
+
+  /* Redesigned left side blocks (match real iPendant photo) */
+  .left-grid {
+    display: grid;
+    grid-template-columns: 40px 1fr;   /* left rail | main */
+    gap: 4px;
+    align-items: start;
+  }
+  .left-rail {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .left-rail .k, .left-rail .disp-rocker { min-height: 26px; }
+  .left-rail .led-stack {
+    display: flex; flex-direction: column;
+    gap: 2px; font-size: 7px; color: var(--label); font-weight: 700;
+    align-items: flex-start; padding: 2px 0;
+  }
+  .left-rail .led-stack .led { gap: 3px; }
+
+  .main-col {
+    display: flex; flex-direction: column; gap: 3px;
+  }
+
+  /* 3x3 nav pad */
+  .nav-pad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 140px;
+  }
+  .nav-pad .k-nav { min-height: 26px; font-size: 13px; }
+  .nav-pad .empty { visibility: hidden; }
+
+  /* Wider nav row when the main column is narrower */
+  .disp-slot { display: grid; grid-template-columns: 1fr; margin: 0 auto; max-width: 140px; width: 100%; }
+
+  .row-util {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+  }
+
+  .numpad-new {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+  }
+  .numpad-new .k-num { min-height: 26px; font-size: 11px; }
+  .numpad-new .slot-empty { /* transparent placeholder to preserve column */
+    visibility: hidden;
+  }
+
+  .bottom-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3px;
+    margin-top: 2px;
+  }
+
+  .disp-rocker { min-height: 26px; }
+
 </style>
 </head>
 <body>
@@ -564,58 +630,76 @@
     <div class="main-area">
 
       <div class="left-block">
+        <div class="left-grid">
 
-        <div class="led-row">
-          <div class="led"><div class="led-dot on-green" id="ledPower"></div>POWER</div>
-          <div class="led"><div class="led-dot" id="ledFault"></div>FAULT</div>
-        </div>
-
-        <div class="info-q-row">
-          <div class="k k-white" data-btn="INFO" style="font-style: italic; font-size: 14px;">i</div>
-          <div class="nav-row">
-            <div class="k k-nav" data-btn="LEFT">◀</div>
-            <div class="k k-nav" data-btn="UP">▲</div>
-            <div class="k k-nav" data-btn="DOWN">▼</div>
-            <div class="k k-nav" data-btn="RIGHT">▶</div>
+          <!-- Left rail: i, LEDs, DISP rocker (vertical) -->
+          <div class="left-rail">
+            <div class="k k-white" data-btn="INFO" style="font-style: italic; font-size: 13px;">i</div>
+            <div class="led-stack">
+              <div class="led"><div class="led-dot on-green" id="ledPower"></div>POWER</div>
+              <div class="led"><div class="led-dot" id="ledFault"></div>FAULT</div>
+            </div>
+            <div class="disp-rocker" data-btn="DISP">
+              <div class="label">DISP</div>
+              <div class="rocker"><div class="active"></div><div></div></div>
+            </div>
           </div>
-          <div class="k k-white k-q" data-btn="HELP">?</div>
-        </div>
 
-        <div class="disp-row">
-          <div class="disp-rocker" data-btn="DISP">
-            <div class="label">DISP</div>
-            <div class="rocker"><div class="active"></div><div></div></div>
+          <!-- Main column: 3x3 nav, util row, numpad, diag/help -->
+          <div class="main-col">
+
+            <!-- 3x3 navigation pad with ? in the middle -->
+            <div class="nav-pad">
+              <div class="empty"></div>
+              <div class="k k-nav" data-btn="UP">▲</div>
+              <div class="empty"></div>
+              <div class="k k-nav" data-btn="LEFT">◀</div>
+              <div class="k k-white k-q" data-btn="HELP">?</div>
+              <div class="k k-nav" data-btn="RIGHT">▶</div>
+              <div class="empty"></div>
+              <div class="k k-nav" data-btn="DOWN">▼</div>
+              <div class="empty"></div>
+            </div>
+
+            <!-- RESET | BACK SPACE | ITEM | ENTER -->
+            <div class="row-util">
+              <div class="k" data-btn="RESET">RESET</div>
+              <div class="k" data-btn="BS">BACK<br>SPACE</div>
+              <div class="k" data-btn="ITEM">ITEM</div>
+              <div class="k k-white" data-btn="ENTER">ENTER</div>
+            </div>
+
+            <!-- Numpad 4 cols: last col is blank (matches real iPendant) -->
+            <div class="numpad-new">
+              <div class="k k-num" data-btn="7">7</div>
+              <div class="k k-num" data-btn="8">8</div>
+              <div class="k k-num" data-btn="9">9</div>
+              <div class="slot-empty"></div>
+
+              <div class="k k-num" data-btn="4">4</div>
+              <div class="k k-num" data-btn="5">5</div>
+              <div class="k k-num" data-btn="6">6</div>
+              <div class="slot-empty"></div>
+
+              <div class="k k-num" data-btn="1">1</div>
+              <div class="k k-num" data-btn="2">2</div>
+              <div class="k k-num" data-btn="3">3</div>
+              <div class="slot-empty"></div>
+
+              <div class="k k-num" data-btn="0">0</div>
+              <div class="k k-num" data-btn="DOT">.</div>
+              <div class="k k-num" data-btn="MINUS">-</div>
+              <div class="slot-empty"></div>
+            </div>
+
+            <!-- DIAG/HELP bottom-left -->
+            <div class="bottom-row">
+              <div class="k k-white" data-btn="DIAGHELP" style="font-size: 8px;">DIAG<br>HELP</div>
+              <div></div><div></div><div></div>
+            </div>
+
           </div>
         </div>
-
-        <div class="util-row">
-          <div class="k" data-btn="RESET">RESET</div>
-          <div class="k" data-btn="BS">BACK<br>SPACE</div>
-          <div class="k" data-btn="ITEM">ITEM</div>
-          <div class="k k-white" data-btn="ENTER">ENTER</div>
-        </div>
-
-        <div class="numpad">
-          <div class="k" data-btn="7">7</div>
-          <div class="k" data-btn="8">8</div>
-          <div class="k" data-btn="9">9</div>
-          <div class="k" data-btn="4">4</div>
-          <div class="k" data-btn="5">5</div>
-          <div class="k" data-btn="6">6</div>
-          <div class="k" data-btn="1">1</div>
-          <div class="k" data-btn="2">2</div>
-          <div class="k" data-btn="3">3</div>
-          <div class="k" data-btn="0">0</div>
-          <div class="k" data-btn="DOT">.</div>
-          <div class="k" data-btn="MINUS">-</div>
-        </div>
-
-        <div class="diag-row">
-          <div class="k k-white" data-btn="DIAGHELP" style="font-size: 9px;">DIAG<br>HELP</div>
-          <div></div>
-          <div></div>
-        </div>
-
       </div>
 
       <div class="axis-block">
