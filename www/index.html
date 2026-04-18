@@ -209,6 +209,73 @@
     color: var(--screen-accent);
   }
   @keyframes cb { 50% { opacity: 0; } }
+
+  /* ---- On-screen popup (FCTN menu / confirmations) ---- */
+  .pg-popup {
+    position: absolute;
+    top: 32px; left: 8px; right: 8px;
+    background: #0e1a2a;
+    border: 2px solid var(--screen-accent);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+    z-index: 5;
+    font-family: 'Courier New', monospace;
+  }
+  .pg-popup .pop-title {
+    background: var(--screen-accent);
+    color: #000;
+    font-weight: 700;
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+  .pg-popup .pop-item {
+    padding: 3px 8px;
+    color: #c8ffd0;
+    font-size: 11px;
+  }
+  .pg-popup .pop-item.sel {
+    background: #2a4a2a;
+    color: #fff;
+    border-left: 3px solid var(--screen-accent);
+    padding-left: 5px;
+  }
+
+  /* ---- Edit mode banner ---- */
+  .edit-bar {
+    background: #6a4a0a;
+    color: #fff;
+    padding: 4px 6px;
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+    margin: 6px -10px -8px -10px;
+    display: flex; gap: 6px; align-items: center;
+    border-top: 1px solid #000;
+  }
+  .edit-bar .lbl { color: #ffd080; }
+  .edit-bar .buf { color: #fff; font-weight: 700; }
+  .edit-bar .caret::after {
+    content: '_';
+    animation: cb 0.8s step-end infinite;
+  }
+
+  /* ---- Progress bar ---- */
+  .prog-bar {
+    background: #002a10;
+    border: 1px solid #0a3a1a;
+    height: 14px;
+    margin: 6px 0;
+    position: relative;
+  }
+  .prog-bar > div {
+    background: var(--screen-accent);
+    height: 100%;
+    transition: width 0.15s;
+  }
+  .prog-bar > span {
+    position: absolute; inset: 0;
+    text-align: center; color: #000;
+    font-size: 10px; font-weight: 700;
+    line-height: 14px;
+  }
   .screen-fkeys {
     display: grid; grid-template-columns: repeat(5, 1fr);
     font-size: 9px; background: #001408; color: #8adb9a;
@@ -623,6 +690,44 @@ const state = {
   page: 'utilHints',
   cursor: 0,
   pageStack: [],         // for PREV returning
+
+  // modal popup (FCTN, confirmations)
+  modal: null,
+
+  // numeric edit mode
+  editing: null,
+
+  // virtual filesystem per device
+  currentDevice: 'MC:',
+  fs: {
+    'MC:':  { cwd: '/', tree: {
+      'BACKUP':     { type:'DIR', children:{} },
+      'AOADATA.DG': { type:'FILE', size: 4096, date:'18-APR-26' },
+    }},
+    'UD1:': { cwd: '/', tree: {} },
+    'FR:':  { cwd: '/', tree: {
+      'SYSVARS.SV':  { type:'FILE', size:131072, date:'15-APR-26' },
+      'NUMREG.VR':   { type:'FILE',   size:8192, date:'15-APR-26' },
+      'POSREG.VR':   { type:'FILE',   size:4096, date:'15-APR-26' },
+      'DIOCFGSV.IO': { type:'FILE',   size:2048, date:'15-APR-26' },
+      'FRAMEVAR.VR': { type:'FILE',   size:1024, date:'15-APR-26' },
+      'SAMPLE1.TP':  { type:'FILE',    size:768, date:'10-APR-26' },
+      'HOME.TP':     { type:'FILE',    size:256, date:'10-APR-26' },
+    }},
+    'MF:':  { cwd: '/', tree: {} },
+    'RD:':  { cwd: '/', tree: {} },
+  },
+
+  // registers
+  numReg: Array.from({length: 20}, () => 0),
+  posReg: Array.from({length: 10}, () => null),
+
+  // digital I/O
+  dIn:  new Array(32).fill(0),
+  dOut: new Array(32).fill(0),
+  uIn:  new Array(32).fill(0),
+  uOut: new Array(32).fill(0),
+  ioPage: 'DO',
 };
 
 /* ---------- Toast ---------- */
@@ -785,12 +890,15 @@ function renderPage() {
     return;
   }
 
-  const rows = p.rows ? p.rows() : [];
-  let html = `<div class="pg-title"><span>${p.title}</span><span class="pg-sub">${p.subtitle || ''}</span></div>`;
+  const title    = typeof p.title    === 'function' ? p.title()    : p.title;
+  const subtitle = typeof p.subtitle === 'function' ? p.subtitle() : (p.subtitle || '');
+
+  let html = `<div class="pg-title"><span>${title}</span><span class="pg-sub">${subtitle}</span></div>`;
 
   if (p.custom) {
     html += p.custom();
-  } else {
+  } else if (p.rows) {
+    const rows = p.rows();
     html += '<div class="pg-list">';
     rows.forEach((r, i) => {
       const sel = i === state.cursor ? ' sel' : '';
@@ -801,27 +909,65 @@ function renderPage() {
 
   if (p.hint) html += `<div class="pg-hint">${p.hint}</div>`;
 
+  if (state.modal) {
+    const m = state.modal;
+    html += `<div class="pg-popup"><div class="pop-title">${m.title}</div>`;
+    m.items.forEach((it, i) => {
+      const sel = i === (m.cursor || 0) ? ' sel' : '';
+      html += `<div class="pop-item${sel}">${it.label}</div>`;
+    });
+    html += '</div>';
+  }
+
+  if (state.editing) {
+    html += `<div class="edit-bar"><span class="lbl">${state.editing.label}</span><span class="buf caret">${state.editing.buffer || ''}</span></div>`;
+  }
+
   body.innerHTML = html;
   setSoftKeys(p.softKeys || []);
 
-  // auto-scroll selected row into view
-  const sel = body.querySelector('.pg-row.sel');
+  const sel = body.querySelector('.pg-row.sel, .pop-item.sel');
   if (sel) sel.scrollIntoView({ block: 'nearest' });
 }
 
 function moveCursor(delta) {
+  if (state.modal) {
+    const m = state.modal;
+    const n = m.items.length;
+    if (!n) return;
+    m.cursor = (((m.cursor || 0) + delta) % n + n) % n;
+    renderPage();
+    return;
+  }
   const p = PAGES[state.page];
-  if (!p || !p.rows) return;
-  const rows = p.rows();
-  if (!rows.length) return;
-  state.cursor = (state.cursor + delta + rows.length) % rows.length;
+  if (!p) return;
+  let count = 0;
+  if (p.rows) count = p.rows().length;
+  else if (p.navCount) count = p.navCount();
+  if (!count) return;
+  state.cursor = ((state.cursor + delta) % count + count) % count;
   renderPage();
 }
 
 function activateCursor() {
+  if (state.modal) {
+    const item = state.modal.items[state.modal.cursor || 0];
+    if (item && item.action) item.action(closeModal);
+    else closeModal();
+    return;
+  }
   const p = PAGES[state.page];
   if (!p) return;
   if (p.onEnter) p.onEnter(state.cursor);
+}
+
+function openModal(title, items) {
+  state.modal = { title, items, cursor: 0 };
+  renderPage();
+}
+function closeModal() {
+  state.modal = null;
+  renderPage();
 }
 
 /* =====================================================================
@@ -977,12 +1123,189 @@ const PAGES = {
     hint: 'Press PREV to return.',
   },
 
-  /* ---- Stubs for iteration 2+ ---- */
-  testCycle:   stub('TEST CYCLE',   'Coming in iteration 2.'),
-  manualFctns: stub('MANUAL FCTNS', 'Macro call / utility — iteration 2.'),
+  /* ---- FILE: device selector ---- */
+  fileList: {
+    title: 'FILE',
+    subtitle: 'Select device',
+    rows: () => [
+      ' 1  MC:   Memory Card',
+      ' 2  UD1:  USB Device 1',
+      ' 3  FR:   FROM Disk (internal)',
+      ' 4  MF:   Memory File',
+      ' 5  RD:   RAM Disk',
+    ],
+    softKeys: ['[TYPE]', 'LOAD', 'SAVE', 'UTIL', '>'],
+    onEnter: (i) => {
+      const dev = ['MC:','UD1:','FR:','MF:','RD:'][i];
+      if (!dev) return;
+      state.currentDevice = dev;
+      state.fs[dev].cwd = '/';
+      goPage('fileBrowser');
+    },
+    hint: 'ENTER to open device.',
+  },
+
+  fileBrowser: {
+    title: () => state.currentDevice + state.fs[state.currentDevice].cwd,
+    subtitle: () => fileCount() + ' items',
+    custom: () => renderFileBrowser(),
+    navCount: () => Math.max(1, currentFileItems().length),
+    softKeys: ['[TYPE]', 'COPY', 'DEL', 'MKDIR', 'UTIL'],
+    onF: (i) => {
+      if (i === 0) toast('TYPE: *.* / *.TP / *.VR');
+      else if (i === 1) fileCopy();
+      else if (i === 2) fileDelete();
+      else if (i === 3) fileMkdir();
+      else if (i === 4) goPage('fileUtil');
+    },
+    onEnter: () => {
+      const items = currentFileItems();
+      const item = items[state.cursor];
+      if (!item) return;
+      if (item.isUp) {
+        const d = state.fs[state.currentDevice];
+        const parts = d.cwd.split('/').filter(Boolean);
+        parts.pop();
+        d.cwd = '/' + (parts.length ? parts.join('/') + '/' : '');
+        state.cursor = 0;
+        renderPage();
+      } else if (item.entry.type === 'DIR') {
+        state.fs[state.currentDevice].cwd += item.name + '/';
+        state.cursor = 0;
+        renderPage();
+      } else {
+        toast(item.name + ' (' + (item.entry.size || 0) + ' bytes)');
+      }
+    },
+    hint: 'F2 COPY | F3 DEL | F4 MKDIR | F5 UTIL',
+  },
+
+  fileUtil: {
+    title: () => state.currentDevice + ' . UTIL',
+    subtitle: '',
+    rows: () => [
+      ' 1  FORMAT',
+      ' 2  RENAME',
+      ' 3  ATTR',
+      ' 4  CHECK DISK',
+    ],
+    softKeys: ['[TYPE]', '', '', '', '>'],
+    onEnter: (i) => {
+      if (i === 0) askFormat();
+      else if (i === 3) toast('CHECK DISK: no errors');
+      else toast('Not implemented');
+    },
+  },
+
+  backup: {
+    title: 'BACKUP',
+    subtitle: () => 'to ' + state.currentDevice,
+    rows: () => [
+      ' 1  All of above',
+      ' 2  System files',
+      ' 3  TP programs',
+      ' 4  Application',
+      ' 5  Application-TP',
+      ' 6  Error log',
+      ' 7  Diagnostic log',
+      ' 8  Vision data',
+      ' 9  Robot image [.IMG]',
+    ],
+    softKeys: ['DEVICE', 'BACKUP', '', '', '>'],
+    onF: (i) => {
+      if (i === 0) goPage('fileList');
+      else if (i === 1) startBackup(state.cursor);
+    },
+    onEnter: (i) => startBackup(i),
+    hint: 'F1 change device | F2 run backup | ENTER = run selected.',
+  },
+
+  backupRun: {
+    title: 'BACKUP in progress',
+    subtitle: () => 'to ' + state.currentDevice,
+    custom: () => renderBackupProgress(),
+    softKeys: ['', '', '', 'ABORT', '>'],
+    onF: (i) => { if (i === 3) abortBackup(); },
+    hint: 'Writing files. Do not power off.',
+  },
+
+  data: {
+    title: 'DATA',
+    subtitle: 'Numeric Registers',
+    custom: () => renderRegisters(),
+    navCount: () => state.numReg.length,
+    softKeys: ['[TYPE]', 'CLEAR', '', '', '>'],
+    onF: (i) => {
+      if (i === 0) toast('TYPE: R[] / PR[] / SR[]');
+      else if (i === 1) { state.numReg[state.cursor] = 0; renderPage(); toast('R[' + (state.cursor+1) + '] = 0'); }
+    },
+    onEnter: (i) => {
+      startEdit({
+        target: { kind: 'numReg', idx: i },
+        label: 'R[' + (i + 1) + '] =',
+        buffer: '',
+      });
+    },
+    hint: 'ENTER to edit | numpad types | ENTER confirm | PREV cancel',
+  },
+
+  io: {
+    title: () => 'I/O ' + state.ioPage,
+    subtitle: '[1-16]',
+    custom: () => renderIO(),
+    navCount: () => 16,
+    softKeys: ['[TYPE]', 'ON', 'OFF', 'SIM', '>'],
+    onF: (i) => {
+      if (i === 0) cycleIOType();
+      else if (i === 1) setIO(state.cursor, 1);
+      else if (i === 2) setIO(state.cursor, 0);
+      else if (i === 3) toast('SIMULATE (iter 4)');
+    },
+    onEnter: (i) => toggleIO(i),
+    hint: 'ENTER toggles | F1 cycles DI/DO/UI/UO',
+  },
+
+  setup: {
+    title: 'SETUP',
+    rows: () => [
+      ' 1  Prog Select',
+      ' 2  General',
+      ' 3  Frames',
+      ' 4  Macro',
+      ' 5  Ref Position',
+      ' 6  Port Init',
+      ' 7  Host Comm',
+      ' 8  Password',
+    ],
+    softKeys: ['[TYPE]', '', '', '', '>'],
+    onEnter: (i) => {
+      if (i === 2) goPage('frames');
+      else toast('SETUP ' + (i+1) + ' (iter 4)');
+    },
+  },
+
+  frames: {
+    title: 'FRAMES',
+    rows: () => [
+      ' 1  Tool Frame',
+      ' 2  User Frame',
+      ' 3  Jog Frame',
+      ' 4  Cell Frame',
+    ],
+    softKeys: ['[TYPE]', 'DETAIL', '', '', '>'],
+    onEnter: (i) => toast('Frame ' + (i+1) + ' (iter 4)'),
+  },
+
+  testCycle:   stub('TEST CYCLE',   'Cycle test (iter 4).'),
+  manualFctns: stub('MANUAL FCTNS', 'Macro call (iter 4).'),
+  userMenu:    stub('USER',         'User menu (iter 4).'),
+  select:      stub('SELECT',       'Program list (iter 3).'),
+  edit:        stub('EDIT',         'TP editor (iter 3).'),
+  system:      stub('SYSTEM',       'System variables (iter 4).'),
+
   alarm: {
     title: 'ALARM',
-    subtitle: state.fault ? 'ACTIVE' : 'HISTORY',
+    subtitle: () => state.fault ? 'ACTIVE' : 'HISTORY',
     rows: () => state.fault
       ? [
           ' 1  SRVO-002 Teach Pendant E-stop',
@@ -1000,15 +1323,283 @@ const PAGES = {
     },
     hint: 'Press RESET key to clear active alarms.',
   },
-  io: stub('I/O',  'DI/DO/UI/UO — iteration 2.'),
-  setup: stub('SETUP', 'Frames, general, comm — iteration 2.'),
-  fileList: stub('FILE', 'File list — iteration 3.'),
-  userMenu: stub('USER', 'User menu — iteration 2.'),
-  select:   stub('SELECT',  'Program selection — iteration 3.'),
-  edit:     stub('EDIT',    'TP-program editor — iteration 3.'),
-  data:     stub('DATA',    'Registers R[]/PR[] — iteration 2.'),
-  system:   stub('SYSTEM',  'Variables, config — iteration 2.'),
 };
+
+/* =====================================================================
+   HELPERS: filesystem, backup, registers, I/O, edit
+   ===================================================================== */
+
+function todayStr() {
+  const d = new Date();
+  const mo = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][d.getMonth()];
+  return String(d.getDate()).padStart(2,'0') + '-' + mo + '-' + String(d.getFullYear()).slice(2);
+}
+
+function currentDeviceRoot() { return state.fs[state.currentDevice]; }
+
+function cwdNode() {
+  const dev = currentDeviceRoot();
+  let node = { children: dev.tree };
+  const parts = dev.cwd.split('/').filter(Boolean);
+  for (const p of parts) {
+    if (!node.children || !node.children[p]) return null;
+    node = node.children[p];
+  }
+  return node;
+}
+
+function currentFileItems() {
+  const node = cwdNode();
+  if (!node) return [];
+  const items = [];
+  if (state.fs[state.currentDevice].cwd !== '/') {
+    items.push({ name: '..', entry: { type: 'DIR', children: {} }, isUp: true });
+  }
+  const children = node.children || {};
+  const names = Object.keys(children).sort((a,b) => {
+    const da = children[a].type === 'DIR' ? 0 : 1;
+    const db = children[b].type === 'DIR' ? 0 : 1;
+    if (da !== db) return da - db;
+    return a.localeCompare(b);
+  });
+  for (const n of names) items.push({ name: n, entry: children[n] });
+  return items;
+}
+
+function fileCount() { return currentFileItems().length; }
+
+function renderFileBrowser() {
+  const items = currentFileItems();
+  if (!items.length) return `<div class="pg-row" style="color:#6a9a6a;">  -- empty --</div>`;
+  let html = '<div class="pg-list">';
+  items.forEach((it, i) => {
+    const sel = i === state.cursor ? ' sel' : '';
+    const name = it.entry.type === 'DIR' ? ('[' + it.name + ']') : it.name;
+    const namePad = name.padEnd(16).slice(0, 16);
+    const size = it.entry.type === 'DIR' ? '  <DIR>' : String(it.entry.size || 0).padStart(7);
+    const date = it.entry.date || '         ';
+    html += `<div class="pg-row${sel}"><span> ${String(i+1).padStart(2)}  ${namePad}${size}  ${date}</span></div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function fileMkdir() {
+  const node = cwdNode();
+  if (!node || !node.children) { toast('FILE-061 device not ready'); return; }
+  openModal('CREATE DIRECTORY', [
+    { label: ' 1  Name: NEWDIR', action: c => {
+        let name = 'NEWDIR', i = 1;
+        while (node.children[name]) { name = 'NEWDIR' + i; i++; }
+        node.children[name] = { type:'DIR', children:{} };
+        c(); toast('Created ' + name + '/');
+      } },
+    { label: ' 2  Cancel', action: c => c() },
+  ]);
+}
+
+function fileDelete() {
+  const items = currentFileItems();
+  const item = items[state.cursor];
+  if (!item || item.isUp) { toast('Select a file'); return; }
+  openModal('DELETE ' + item.name + '?', [
+    { label: ' 1  YES - delete', action: c => {
+        const node = cwdNode();
+        delete node.children[item.name];
+        state.cursor = Math.max(0, state.cursor - 1);
+        c(); toast('Deleted ' + item.name);
+      } },
+    { label: ' 2  NO  - cancel', action: c => c() },
+  ]);
+}
+
+function fileCopy() {
+  const items = currentFileItems();
+  const item = items[state.cursor];
+  if (!item || item.isUp || item.entry.type === 'DIR') {
+    toast('Select a file to copy'); return;
+  }
+  const node = cwdNode();
+  let name = 'COPY_' + item.name, i = 1;
+  while (node.children[name]) { name = 'COPY' + i + '_' + item.name; i++; }
+  node.children[name] = Object.assign({}, item.entry);
+  toast('Copied -> ' + name);
+  renderPage();
+}
+
+function askFormat() {
+  openModal('FORMAT ' + state.currentDevice + '?', [
+    { label: 'WARNING: destroys ALL data', action: c => {} },
+    { label: ' 1  YES - continue', action: c => {
+        openModal('Are you REALLY sure?', [
+          { label: ' 1  YES - final',  action: c2 => {
+              state.fs[state.currentDevice].tree = {};
+              state.fs[state.currentDevice].cwd = '/';
+              c2(); toast(state.currentDevice + ' FORMATTED');
+            } },
+          { label: ' 2  NO  - cancel', action: c2 => c2() },
+        ]);
+      } },
+    { label: ' 2  NO  - cancel', action: c => c() },
+  ]);
+}
+
+const BACKUP_SETS = {
+  0: { name: 'All of above',   files: ['SYSVARS.SV','NUMREG.VR','POSREG.VR','DIOCFGSV.IO','FRAMEVAR.VR','SREGS.VR','UIFRAME.VR','TOOLFRM.VR','USERFRM.VR','PALREG.VR','ERRLOG.LS','DIAGLOG.LS'] },
+  1: { name: 'System files',   files: ['SYSVARS.SV','SYSSERVO.SV','SYSMACRO.SV','SYSMAST.SV','FRAMEVAR.VR'] },
+  2: { name: 'TP programs',    files: ['SAMPLE1.TP','HOME.TP','TEST.TP'] },
+  3: { name: 'Application',    files: ['APPL.VR','PAYLOAD.SV'] },
+  4: { name: 'Application-TP', files: ['APPL.VR','SAMPLE1.TP','HOME.TP'] },
+  5: { name: 'Error log',      files: ['ERRALL.LS'] },
+  6: { name: 'Diagnostic',     files: ['DIAG.LS','PASSLOG.DG'] },
+  7: { name: 'Vision data',    files: ['VIS_DATA.VR'] },
+  8: { name: 'Robot image',    files: ['ROBOT.IMG'] },
+};
+
+let backupState = null;
+
+function startBackup(setIdx) {
+  const set = BACKUP_SETS[setIdx];
+  if (!set) return;
+  const dev = state.currentDevice;
+  const node = cwdNode();
+  if (!node || !node.children) { toast('FILE-061 device not ready'); return; }
+  if (dev === 'MC:' || dev === 'UD1:') {
+    const backupName = 'BACKUP';
+    if (!node.children[backupName]) {
+      openModal('Directory BACKUP does not exist', [
+        { label: ' 1  YES - create & backup', action: c => {
+            node.children[backupName] = { type:'DIR', children:{} };
+            c(); runBackup(setIdx, backupName);
+          } },
+        { label: ' 2  NO  - abort', action: c => { c(); toast('Backup aborted'); } },
+      ]);
+      return;
+    }
+    runBackup(setIdx, backupName);
+  } else {
+    runBackup(setIdx, null);
+  }
+}
+
+function runBackup(setIdx, targetDir) {
+  const set = BACKUP_SETS[setIdx];
+  backupState = {
+    setIdx, setName: set.name,
+    files: set.files.slice(),
+    targetDir, current: 0, aborted: false,
+  };
+  goPage('backupRun');
+  scheduleBackupTick();
+}
+
+function scheduleBackupTick() {
+  if (!backupState) return;
+  setTimeout(() => {
+    if (!backupState || backupState.aborted) return;
+    const bs = backupState;
+    if (bs.current < bs.files.length) {
+      const fname = bs.files[bs.current];
+      const dev = currentDeviceRoot();
+      let parent = { children: dev.tree };
+      if (bs.targetDir) {
+        if (!parent.children[bs.targetDir]) parent.children[bs.targetDir] = { type:'DIR', children:{} };
+        parent = parent.children[bs.targetDir];
+      }
+      parent.children[fname] = {
+        type:'FILE',
+        size: 2048 + Math.floor(Math.random() * 20000),
+        date: todayStr(),
+      };
+      bs.current++;
+      renderPage();
+      scheduleBackupTick();
+    } else {
+      toast('BACKUP COMPLETE: ' + bs.files.length + ' files', 2200);
+      backupState = null;
+      goBack();
+    }
+  }, 320);
+}
+
+function abortBackup() {
+  if (backupState) {
+    backupState.aborted = true;
+    backupState = null;
+    toast('Backup aborted');
+    goBack();
+  }
+}
+
+function renderBackupProgress() {
+  const bs = backupState;
+  if (!bs) return '<div class="pg-row">No backup in progress.</div>';
+  const pct = Math.round(100 * bs.current / bs.files.length);
+  const cur = bs.current < bs.files.length ? bs.files[bs.current] : '(done)';
+  const nowIdx = Math.min(bs.current + 1, bs.files.length);
+  let html = `<div class="pg-section">${bs.setName} -> ${state.currentDevice}${bs.targetDir ? '\\' + bs.targetDir : ''}\\</div>`;
+  html += `<div class="pg-row"><span>File ${nowIdx}/${bs.files.length}: ${cur}</span></div>`;
+  html += `<div class="prog-bar"><div style="width:${pct}%"></div><span>${pct}%</span></div>`;
+  html += `<div class="pg-hint">Writing... do not power off.</div>`;
+  return html;
+}
+
+function renderRegisters() {
+  let html = '<div class="pg-section">NUMERIC REG  R[1-20]</div><div class="pg-list">';
+  state.numReg.forEach((v, i) => {
+    const sel = i === state.cursor ? ' sel' : '';
+    const line = `R[${String(i+1).padStart(2,' ')}] = ${v.toFixed(3)}`;
+    html += `<div class="pg-row${sel}"><span> ${line}</span></div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function startEdit(opts) { state.editing = opts; renderPage(); }
+
+function commitEdit() {
+  const e = state.editing;
+  if (!e) return;
+  if (e.buffer !== '' && e.buffer !== '-' && e.buffer !== '.') {
+    const val = parseFloat(e.buffer);
+    if (!isNaN(val) && e.target.kind === 'numReg') {
+      state.numReg[e.target.idx] = val;
+      toast('R[' + (e.target.idx + 1) + '] = ' + val);
+    } else {
+      toast('Invalid entry');
+    }
+  }
+  state.editing = null;
+  renderPage();
+}
+
+function cancelEdit() { state.editing = null; renderPage(); }
+
+function getIOArr() {
+  return ({ DI: state.dIn, DO: state.dOut, UI: state.uIn, UO: state.uOut })[state.ioPage];
+}
+
+function renderIO() {
+  const arr = getIOArr();
+  const max = Math.min(16, arr.length);
+  let html = '<div class="pg-section">' + state.ioPage + '[1-' + max + ']</div><div class="pg-list">';
+  for (let i = 0; i < max; i++) {
+    const sel = i === state.cursor ? ' sel' : '';
+    const v = arr[i] ? 'ON ' : 'OFF';
+    html += `<div class="pg-row${sel}"><span> ${state.ioPage}[${String(i+1).padStart(2)}] = ${v}</span></div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function toggleIO(i) { const a = getIOArr(); a[i] = a[i] ? 0 : 1; renderPage(); }
+function setIO(i, v) { const a = getIOArr(); a[i] = v; renderPage(); }
+function cycleIOType() {
+  const order = ['DI','DO','UI','UO'];
+  state.ioPage = order[(order.indexOf(state.ioPage) + 1) % order.length];
+  state.cursor = 0;
+  renderPage();
+}
 
 function stub(title, msg) {
   return {
@@ -1036,8 +1627,15 @@ function handleBtn(btn, el) {
     case 'DOWN':  moveCursor(+1); break;
     case 'LEFT':  moveCursor(-1); break;   // placeholder
     case 'RIGHT': moveCursor(+1); break;   // placeholder
-    case 'ENTER': activateCursor(); break;
-    case 'PREV':  goBack(); break;
+    case 'ENTER':
+      if (state.editing) { commitEdit(); break; }
+      activateCursor();
+      break;
+    case 'PREV':
+      if (state.editing) { cancelEdit(); break; }
+      if (state.modal)   { closeModal();  break; }
+      goBack();
+      break;
     case 'NEXT':
       // If we're on mainMenu ↔ mainMenu2 treat NEXT as page flip
       if (state.page === 'mainMenu')  { goPage('mainMenu2', false); break; }
@@ -1050,8 +1648,18 @@ function handleBtn(btn, el) {
     case 'EDIT':   goPage('edit'); break;
     case 'DATA':   goPage('data'); break;
     case 'FCTN':
-      // FCTN on real pendant opens a small modal; for now go to a stub page
-      toast('FCTN menu — iteration 2');
+      openModal('FCTN', [
+        { label: ' 1  ABORT (ALL)',       action: c => { stopAllJog(); c(); toast('ABORT ALL'); } },
+        { label: ' 2  Disable FWD/BWD',   action: c => { c(); toast('Disabled FWD/BWD'); } },
+        { label: ' 3  CHANGE GROUP',      action: c => { state.group = state.group===1?2:1; refreshStatus(); c(); toast('GROUP ' + state.group); } },
+        { label: ' 4  TOGGLE SUB GROUP',  action: c => { c(); toast('Sub group toggled'); } },
+        { label: ' 5  RELEASE WAIT',      action: c => { c(); toast('Release wait'); } },
+        { label: ' 6  QUICK / FULL menu', action: c => c() },
+        { label: ' 7  SAVE',              action: c => { c(); toast('Saved'); } },
+        { label: ' 8  PRINT SCREEN',      action: c => { c(); toast('Screen printed'); } },
+        { label: ' 9  BACKUP',            action: c => { c(); goPage('backup'); } },
+        { label: ' 0  RESTORE',           action: c => { c(); toast('RESTORE (iter 3)'); } },
+      ]);
       break;
 
     /* ---- soft-keys ---- */
@@ -1111,15 +1719,41 @@ function handleBtn(btn, el) {
       break;
 
     /* ---- misc ---- */
-    case 'BS':    toast('BACK SPACE'); break;
-    case 'ITEM':  toast('ITEM — iteration 2'); break;
+    case 'BS':
+      if (state.editing) {
+        state.editing.buffer = (state.editing.buffer || '').slice(0, -1);
+        renderPage();
+        break;
+      }
+      toast('BACK SPACE');
+      break;
+    case 'ITEM':
+      openModal('GO TO LINE #', [
+        { label: 'Type line number then ENTER', action: c => c() },
+        { label: 'Cancel',                      action: c => c() },
+      ]);
+      break;
     case 'INFO':  goPage('alarm'); break;
     case 'HELP':  toast('? HELP — context help on ' + state.page); break;
     case 'DIAGHELP': toast('DIAG/HELP'); break;
     case 'DISP':  toast('DISP — split screen (iteration 4)'); break;
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9': {
-      // On a numbered menu page, digits jump to that entry
+      if (state.editing) {
+        state.editing.buffer = (state.editing.buffer || '') + btn;
+        renderPage();
+        break;
+      }
+      if (state.modal) {
+        const n = parseInt(btn, 10);
+        const idx = n === 0 ? state.modal.items.length - 1 : n - 1;
+        if (idx >= 0 && idx < state.modal.items.length) {
+          state.modal.cursor = idx;
+          renderPage();
+          setTimeout(() => activateCursor(), 120);
+        }
+        break;
+      }
       const p = PAGES[state.page];
       if (p && p.rows) {
         const n = parseInt(btn, 10);
@@ -1133,8 +1767,24 @@ function handleBtn(btn, el) {
       }
       break;
     }
-    case 'DOT': case 'MINUS':
-      toast('KEY ' + (btn === 'DOT' ? '.' : '-'));
+    case 'DOT':
+      if (state.editing) {
+        if (!(state.editing.buffer || '').includes('.')) {
+          state.editing.buffer = (state.editing.buffer || '') + '.';
+          renderPage();
+        }
+        break;
+      }
+      toast('KEY .');
+      break;
+    case 'MINUS':
+      if (state.editing) {
+        const b = state.editing.buffer || '';
+        state.editing.buffer = b.startsWith('-') ? b.slice(1) : '-' + b;
+        renderPage();
+        break;
+      }
+      toast('KEY -');
       break;
   }
 }
