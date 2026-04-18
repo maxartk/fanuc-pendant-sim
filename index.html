@@ -154,6 +154,61 @@
     font-size: 11px; line-height: 1.45;
     overflow-y: auto;
   }
+
+  /* ---- Screen page layout (FANUC look) ---- */
+  .pg-title {
+    color: #ffffff;
+    background: #004a8a;
+    padding: 2px 6px;
+    margin: -8px -10px 6px -10px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; justify-content: space-between;
+    border-bottom: 1px solid #001a3a;
+  }
+  .pg-title .pg-sub { color: #b0d0f0; font-weight: 400; }
+
+  .pg-list { display: flex; flex-direction: column; gap: 0; }
+  .pg-row {
+    display: flex; justify-content: space-between;
+    padding: 1px 4px;
+    color: var(--screen-fg);
+    font-family: 'Courier New', monospace;
+    white-space: pre;
+    border-left: 3px solid transparent;
+  }
+  .pg-row.sel {
+    background: #2a4a2a;
+    color: #fff;
+    border-left-color: var(--screen-accent);
+  }
+  .pg-row.sel-edit {
+    background: #6a4a0a;
+    color: #fff;
+    border-left-color: #ffaa00;
+  }
+  .pg-row .k-col { color: #9acbff; width: 2.2em; display: inline-block; text-align: right; margin-right: 6px; }
+  .pg-row .v-col { color: #fff; }
+  .pg-row .end-arrow { color: #6a9a6a; margin-left: auto; }
+
+  .pg-section {
+    color: #ffaa00;
+    font-weight: 700;
+    padding: 3px 4px 2px 4px;
+    margin-top: 4px;
+    border-bottom: 1px solid #0a3a1a;
+  }
+
+  .pg-hint { color: #6a9a6a; font-size: 10px; margin-top: 6px; }
+  .pg-mono { font-family: 'Courier New', monospace; }
+
+  /* Blink cursor for input */
+  .cursor-blink::after {
+    content: '_';
+    animation: cb 1s step-end infinite;
+    color: var(--screen-accent);
+  }
+  @keyframes cb { 50% { opacity: 0; } }
   .screen-fkeys {
     display: grid; grid-template-columns: repeat(5, 1fr);
     font-size: 9px; background: #001408; color: #8adb9a;
@@ -540,14 +595,10 @@
 
 <div class="toast" id="toast"></div>
 
-<div class="menu-overlay" id="menuOverlay">
-  <div class="menu-title" id="menuTitle">MENU</div>
-  <div id="menuContent"></div>
-  <div class="menu-back" onclick="closeMenu()">◀ BACK</div>
-</div>
-
 <script>
-/* FANUC iPendant Simulator — behavior */
+/* =====================================================================
+   FANUC iPendant Simulator — screen-driven behavior (iteration 1)
+   ===================================================================== */
 
 const COORDS = ['JOINT', 'JGFRM', 'WORLD', 'TOOL', 'USER'];
 const MODES  = ['T1', 'AUTO', 'T2'];
@@ -567,8 +618,14 @@ const state = {
   positions: [0, 0, 0, 0, 0, 0],
   cart: { x: 1500, y: 0, z: 1200, w: 0, p: 90, r: 0 },
   jogRepeat: {},
+
+  // screen navigation
+  page: 'utilHints',
+  cursor: 0,
+  pageStack: [],         // for PREV returning
 };
 
+/* ---------- Toast ---------- */
 const toastEl = document.getElementById('toast');
 let toastTimer;
 function toast(msg, duration = 1400) {
@@ -578,8 +635,8 @@ function toast(msg, duration = 1400) {
   toastTimer = setTimeout(() => toastEl.classList.remove('show'), duration);
 }
 
+/* ---------- Deadman / safety ---------- */
 function deadmanHeld() { return state.deadmanL || state.deadmanR; }
-
 function canJog() {
   if (state.estop) { toast('⚠ E-STOP ACTIVE'); return false; }
   if (state.hold)  { toast('⚠ HOLD ACTIVE');   return false; }
@@ -588,6 +645,7 @@ function canJog() {
   return true;
 }
 
+/* ---------- Status bar (persistent at top of screen) ---------- */
 function refreshStatus() {
   document.getElementById('sbCoord').textContent = state.coord;
   document.getElementById('sbSpeed').textContent = state.speedOverride + '%';
@@ -598,6 +656,7 @@ function refreshStatus() {
   document.getElementById('estopOverlay').classList.toggle('show', state.estop);
 }
 
+/* ---------- Jog logic ---------- */
 function jogStep(axisSpec) {
   const axisIdx = parseInt(axisSpec[1], 10) - 1;
   const sign    = axisSpec[2] === '+' ? 1 : -1;
@@ -608,7 +667,15 @@ function jogStep(axisSpec) {
   const lim = limits[axisIdx];
   if (state.positions[axisIdx] >  lim) state.positions[axisIdx] =  lim;
   if (state.positions[axisIdx] < -lim) state.positions[axisIdx] = -lim;
-  refreshPositionScreen();
+  // Also update cartesian placeholder so the numbers move visually
+  state.cart.x = 1500 + state.positions[0] * 2;
+  state.cart.y = state.positions[1] * 3;
+  state.cart.z = 1200 - state.positions[2] * 2;
+  state.cart.w = state.positions[3];
+  state.cart.p = 90 + state.positions[4];
+  state.cart.r = state.positions[5];
+  // Live-refresh if we're on a page that shows coordinates
+  if (state.page === 'position') renderPage();
 }
 
 function startJog(axisSpec) {
@@ -629,16 +696,18 @@ function stopJog(axisSpec) {
 }
 function stopAllJog() { Object.keys(state.jogRepeat).forEach(stopJog); }
 
-function refreshPositionScreen() { if (screenView === 'position') showPosition(); }
-
+/* ---------- E-Stop ---------- */
 document.getElementById('estop').addEventListener('click', () => {
   state.estop = !state.estop;
   document.getElementById('estop').classList.toggle('pressed', state.estop);
   stopAllJog();
-  toast(state.estop ? '⚠ E-STOP PRESSED' : 'E-STOP RELEASED — RESET faults', 2000);
+  toast(state.estop ? '⚠ E-STOP PRESSED' : 'E-STOP RELEASED — press RESET', 2000);
+  if (state.estop) state.fault = true;
   refreshStatus();
+  renderPage();
 });
 
+/* ---------- Keyswitch ---------- */
 const ksEl = document.getElementById('keyswitch');
 const ksLabel = document.getElementById('keyswitchLabel');
 ksEl.addEventListener('click', () => {
@@ -651,6 +720,7 @@ ksEl.addEventListener('click', () => {
   refreshStatus();
 });
 
+/* ---------- Deadman virtual buttons ---------- */
 function wireDeadman(id, prop) {
   const el = document.getElementById(id);
   const press   = () => { state[prop] = true;  el.classList.add('held'); };
@@ -663,6 +733,7 @@ function wireDeadman(id, prop) {
 wireDeadman('deadmanL', 'deadmanL');
 wireDeadman('deadmanR', 'deadmanR');
 
+/* ---------- Axis buttons ---------- */
 document.querySelectorAll('[data-jog]').forEach(el => {
   const spec = el.dataset.jog;
   el.addEventListener('pointerdown', e => { e.preventDefault(); el.classList.add('down'); startJog(spec); });
@@ -671,33 +742,341 @@ document.querySelectorAll('[data-jog]').forEach(el => {
   el.addEventListener('pointercancel',() => { el.classList.remove('down'); stopJog(spec); });
 });
 
+/* =====================================================================
+   PAGE SYSTEM
+   Each "page" is an object { title, subtitle?, rows (fn => array),
+     softKeys (array of labels), onSoftKey, onEnter, onF (i=>void) }
+   ===================================================================== */
+
+const body = document.getElementById('screenBody');
+const fkEls = [1,2,3,4,5].map(i => document.getElementById('fk' + i));
+
+function setSoftKeys(arr) {
+  for (let i = 0; i < 5; i++) fkEls[i].textContent = (arr && arr[i]) || '—';
+}
+
+function goPage(pageName, pushHistory = true) {
+  if (pushHistory && state.page !== pageName) {
+    state.pageStack.push({ page: state.page, cursor: state.cursor });
+    if (state.pageStack.length > 20) state.pageStack.shift();
+  }
+  state.page = pageName;
+  state.cursor = 0;
+  renderPage();
+}
+
+function goBack() {
+  const prev = state.pageStack.pop();
+  if (prev) {
+    state.page = prev.page;
+    state.cursor = prev.cursor;
+  } else {
+    state.page = 'utilHints';
+    state.cursor = 0;
+  }
+  renderPage();
+}
+
+function renderPage() {
+  const p = PAGES[state.page];
+  if (!p) {
+    body.innerHTML = `<div class="pg-title">ERROR<span class="pg-sub">unknown page</span></div><div>Page '${state.page}' not found.</div>`;
+    setSoftKeys([]);
+    return;
+  }
+
+  const rows = p.rows ? p.rows() : [];
+  let html = `<div class="pg-title"><span>${p.title}</span><span class="pg-sub">${p.subtitle || ''}</span></div>`;
+
+  if (p.custom) {
+    html += p.custom();
+  } else {
+    html += '<div class="pg-list">';
+    rows.forEach((r, i) => {
+      const sel = i === state.cursor ? ' sel' : '';
+      html += `<div class="pg-row${sel}">${r}</div>`;
+    });
+    html += '</div>';
+  }
+
+  if (p.hint) html += `<div class="pg-hint">${p.hint}</div>`;
+
+  body.innerHTML = html;
+  setSoftKeys(p.softKeys || []);
+
+  // auto-scroll selected row into view
+  const sel = body.querySelector('.pg-row.sel');
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function moveCursor(delta) {
+  const p = PAGES[state.page];
+  if (!p || !p.rows) return;
+  const rows = p.rows();
+  if (!rows.length) return;
+  state.cursor = (state.cursor + delta + rows.length) % rows.length;
+  renderPage();
+}
+
+function activateCursor() {
+  const p = PAGES[state.page];
+  if (!p) return;
+  if (p.onEnter) p.onEnter(state.cursor);
+}
+
+/* =====================================================================
+   PAGE DEFINITIONS
+   ===================================================================== */
+
+const PAGES = {
+
+  /* ---- Utility Hints (home screen) ---- */
+  utilHints: {
+    title: 'UTILITIES Hints',
+    subtitle: 'JOINT 100%',
+    rows: () => [
+      `   R-30iA · R-2000iC/165F`,
+      `   Servo    : ${state.estop ? 'OFF' : 'READY'}`,
+      `   Program  : —none—`,
+      `   Line     : 0`,
+      `   Deadman  : ${deadmanHeld() ? 'HELD' : 'RELEASED'}`,
+      `   Alarms   : ${state.fault ? 'ACTIVE — RESET' : 'NONE'}`,
+      ``,
+      `   [MENU]    System menus`,
+      `   [SELECT]  Program list`,
+      `   [EDIT]    Edit program`,
+      `   [DATA]    Registers`,
+      `   [FCTN]    Functions`,
+    ],
+    softKeys: ['HINT', 'RUN', '', 'STATUS', '>'],
+    onEnter: () => {},
+    onF: i => { if (i === 3) goPage('status'); },
+    hint: 'Press MENU to open the system menu.',
+  },
+
+  /* ---- Main system menu (two-column FANUC style) ---- */
+  mainMenu: {
+    title: 'SYSTEM MENU',
+    subtitle: '1/2',
+    rows: () => [
+      ' 1  UTILITIES',
+      ' 2  TEST CYCLE',
+      ' 3  MANUAL FCTNS',
+      ' 4  ALARM',
+      ' 5  I/O',
+      ' 6  SETUP',
+      ' 7  FILE',
+      ' 8  ',
+      ' 9  USER',
+      ' 0  --NEXT--',
+    ],
+    softKeys: ['', '', '', '', '>'],
+    onEnter: (i) => {
+      const routes = [
+        'utilHints',   // UTILITIES
+        'testCycle',   // TEST CYCLE
+        'manualFctns', // MANUAL FCTNS
+        'alarm',       // ALARM
+        'io',          // I/O
+        'setup',       // SETUP
+        'fileList',    // FILE
+        null,
+        'userMenu',    // USER
+        'mainMenu2',   // NEXT
+      ];
+      if (routes[i]) goPage(routes[i]);
+    },
+    hint: 'Use ▲▼ to move, ENTER to open. NEXT → page 2/2.',
+  },
+
+  mainMenu2: {
+    title: 'SYSTEM MENU',
+    subtitle: '2/2',
+    rows: () => [
+      ' 1  SELECT',
+      ' 2  EDIT',
+      ' 3  DATA',
+      ' 4  STATUS',
+      ' 5  POSITION',
+      ' 6  SYSTEM',
+      ' 7  USER2',
+      ' 8  BROWSER',
+      ' 9  ',
+      ' 0  --NEXT--',
+    ],
+    softKeys: ['', '', '', '', '>'],
+    onEnter: (i) => {
+      const routes = [
+        'select','edit','data','status','position','system',
+        null,null,null,'mainMenu',
+      ];
+      if (routes[i]) goPage(routes[i]);
+    },
+    hint: 'ENTER to open. NEXT → back to page 1/2.',
+  },
+
+  /* ---- Position (live, driven by jog) ---- */
+  position: {
+    title: 'POSITION',
+    subtitle: () => state.coord,
+    custom: () => {
+      if (state.coord === 'JOINT') {
+        return `
+          <div class="pg-section">JOINT  (degrees)</div>
+          ${state.positions.map((v, i) => `
+            <div class="pg-row"><span class="k-col">J${i+1}</span><span class="v-col">${fmt(v)}</span></div>
+          `).join('')}
+        `;
+      } else {
+        const c = state.cart;
+        return `
+          <div class="pg-section">CARTESIAN  (${state.coord})</div>
+          <div class="pg-row"><span class="k-col">X</span><span class="v-col">${fmt(c.x)} mm</span></div>
+          <div class="pg-row"><span class="k-col">Y</span><span class="v-col">${fmt(c.y)} mm</span></div>
+          <div class="pg-row"><span class="k-col">Z</span><span class="v-col">${fmt(c.z)} mm</span></div>
+          <div class="pg-row"><span class="k-col">W</span><span class="v-col">${fmt(c.w)}°</span></div>
+          <div class="pg-row"><span class="k-col">P</span><span class="v-col">${fmt(c.p)}°</span></div>
+          <div class="pg-row"><span class="k-col">R</span><span class="v-col">${fmt(c.r)}°</span></div>
+          <div class="pg-row"><span class="k-col">CFG</span><span class="v-col">N U T, 0, 0, 0</span></div>
+        `;
+      }
+    },
+    softKeys: ['JOINT', 'USER', 'WORLD', 'TOOL', '>'],
+    onF: (i) => {
+      if (i === 0) state.coord = 'JOINT';
+      if (i === 1) state.coord = 'USER';
+      if (i === 2) state.coord = 'WORLD';
+      if (i === 3) state.coord = 'TOOL';
+      refreshStatus();
+      renderPage();
+    },
+    hint: 'Hold DEADMAN, press jog keys — values update live.',
+  },
+
+  /* ---- Status ---- */
+  status: {
+    title: 'STATUS',
+    subtitle: '',
+    rows: () => [
+      ` Controller  : R-30iA`,
+      ` Robot       : R-2000iC/165F`,
+      ` Axes        : 6`,
+      ` Software    : V8.30P/15`,
+      ` Servo Power : ${state.estop ? 'OFF' : 'ON'}`,
+      ` E-Stop      : ${state.estop ? 'PRESSED' : 'OK'}`,
+      ` Faults      : ${state.fault ? 'ACTIVE' : 'NONE'}`,
+      ` Mode        : ${state.mode}`,
+      ` Deadman     : ${deadmanHeld() ? 'HELD' : 'RELEASED'}`,
+      ` Coord       : ${state.coord}`,
+      ` Override    : ${state.speedOverride}%`,
+      ` Step        : ${state.step ? 'ON' : 'OFF'}`,
+      ` Hold        : ${state.hold ? 'ON' : 'OFF'}`,
+      ` Group       : ${state.group}`,
+    ],
+    softKeys: ['AXIS', 'SAFETY', 'VERSION', 'MEMORY', '>'],
+    hint: 'Press PREV to return.',
+  },
+
+  /* ---- Stubs for iteration 2+ ---- */
+  testCycle:   stub('TEST CYCLE',   'Coming in iteration 2.'),
+  manualFctns: stub('MANUAL FCTNS', 'Macro call / utility — iteration 2.'),
+  alarm: {
+    title: 'ALARM',
+    subtitle: state.fault ? 'ACTIVE' : 'HISTORY',
+    rows: () => state.fault
+      ? [
+          ' 1  SRVO-002 Teach Pendant E-stop',
+          ' 2  SRVO-001 Operator panel E-stop',
+          ' 3  SYST-026 System normal power-up',
+        ]
+      : [
+          ' 1  -- no active alarms --',
+          ' 2  SYST-026 System normal power-up',
+          ' 3  SYST-010 Power failure recovery',
+        ],
+    softKeys: ['HIST', 'RES_1ALM', 'CLEAR', 'HELP', '>'],
+    onF: (i) => {
+      if (i === 1 || i === 2) { state.fault = false; refreshStatus(); toast('ALARMS RESET'); renderPage(); }
+    },
+    hint: 'Press RESET key to clear active alarms.',
+  },
+  io: stub('I/O',  'DI/DO/UI/UO — iteration 2.'),
+  setup: stub('SETUP', 'Frames, general, comm — iteration 2.'),
+  fileList: stub('FILE', 'File list — iteration 3.'),
+  userMenu: stub('USER', 'User menu — iteration 2.'),
+  select:   stub('SELECT',  'Program selection — iteration 3.'),
+  edit:     stub('EDIT',    'TP-program editor — iteration 3.'),
+  data:     stub('DATA',    'Registers R[]/PR[] — iteration 2.'),
+  system:   stub('SYSTEM',  'Variables, config — iteration 2.'),
+};
+
+function stub(title, msg) {
+  return {
+    title,
+    rows: () => [`  ${msg}`, `  — press PREV to go back —`],
+    softKeys: [],
+    hint: '',
+  };
+}
+
+function fmt(v) { return (v >= 0 ? ' ' : '') + v.toFixed(3); }
+
+/* =====================================================================
+   BUTTON HANDLING
+   ===================================================================== */
+
 document.querySelectorAll('[data-btn]').forEach(el => {
   el.addEventListener('click', () => handleBtn(el.dataset.btn, el));
 });
 
 function handleBtn(btn, el) {
   switch (btn) {
-    case 'MENU':   showMenu('main'); break;
-    case 'SELECT': showMenu('select'); break;
-    case 'EDIT':   showEdit(); break;
-    case 'DATA':   showData(); break;
-    case 'FCTN':   showMenu('fctn'); break;
+    /* ---- navigation ---- */
+    case 'UP':    moveCursor(-1); break;
+    case 'DOWN':  moveCursor(+1); break;
+    case 'LEFT':  moveCursor(-1); break;   // placeholder
+    case 'RIGHT': moveCursor(+1); break;   // placeholder
+    case 'ENTER': activateCursor(); break;
+    case 'PREV':  goBack(); break;
+    case 'NEXT':
+      // If we're on mainMenu ↔ mainMenu2 treat NEXT as page flip
+      if (state.page === 'mainMenu')  { goPage('mainMenu2', false); break; }
+      if (state.page === 'mainMenu2') { goPage('mainMenu',  false); break; }
+      toast('NEXT'); break;
+
+    /* ---- top-level screen keys ---- */
+    case 'MENU':   goPage('mainMenu'); break;
+    case 'SELECT': goPage('select'); break;
+    case 'EDIT':   goPage('edit'); break;
+    case 'DATA':   goPage('data'); break;
+    case 'FCTN':
+      // FCTN on real pendant opens a small modal; for now go to a stub page
+      toast('FCTN menu — iteration 2');
+      break;
+
+    /* ---- soft-keys ---- */
+    case 'F1': case 'F2': case 'F3': case 'F4': case 'F5': {
+      const i = parseInt(btn[1], 10) - 1;
+      const p = PAGES[state.page];
+      if (p && p.onF) p.onF(i);
+      else toast('Soft key ' + btn);
+      break;
+    }
+
+    /* ---- modal / toggle keys ---- */
     case 'SHIFT':
       state.shift = !state.shift;
       document.querySelectorAll('[data-toggle="shift"]').forEach(s => s.classList.toggle('down', state.shift));
-      toast('SHIFT: ' + (state.shift ? 'ON' : 'OFF'));
       break;
-    case 'COORD':
-      if (state.shift) {
-        const i = COORDS.indexOf(state.coord);
-        state.coord = COORDS[(i - 1 + COORDS.length) % COORDS.length];
-      } else {
-        const i = COORDS.indexOf(state.coord);
-        state.coord = COORDS[(i + 1) % COORDS.length];
-      }
+    case 'COORD': {
+      const dir = state.shift ? -1 : 1;
+      const i = COORDS.indexOf(state.coord);
+      state.coord = COORDS[(i + dir + COORDS.length) % COORDS.length];
       toast('COORD: ' + state.coord);
       refreshStatus();
+      if (state.page === 'position') renderPage();
       break;
+    }
     case 'GROUP':
       state.group = state.group === 1 ? 2 : 1;
       toast('GROUP: ' + state.group);
@@ -706,7 +1085,7 @@ function handleBtn(btn, el) {
     case 'STEP':
       state.step = !state.step;
       el.classList.toggle('down', state.step);
-      toast('STEP: ' + (state.step ? 'ON' : 'OFF (CONTINUOUS)'));
+      toast('STEP: ' + (state.step ? 'ON' : 'CONTINUOUS'));
       break;
     case 'HOLD':
       state.hold = !state.hold;
@@ -716,11 +1095,11 @@ function handleBtn(btn, el) {
       break;
     case 'FWD':
       if (!state.shift) { toast('FWD requires SHIFT'); break; }
-      toast('▶ PROGRAM FWD');
+      toast('▶ PROGRAM FWD (iteration 3)');
       break;
     case 'BWD':
       if (!state.shift) { toast('BWD requires SHIFT'); break; }
-      toast('◀ PROGRAM BWD');
+      toast('◀ PROGRAM BWD (iteration 3)');
       break;
     case 'SPEEDUP': bumpSpeed(+5); break;
     case 'SPEEDDN': bumpSpeed(-5); break;
@@ -728,22 +1107,34 @@ function handleBtn(btn, el) {
       state.fault = false;
       toast('FAULTS RESET');
       refreshStatus();
+      renderPage();
       break;
-    case 'BS':     toast('BACK SPACE'); break;
-    case 'ITEM':   toast('ITEM — jump to line'); break;
-    case 'ENTER':  toast('ENTER'); break;
-    case 'INFO':   toast('i — alarms / info'); break;
-    case 'HELP':   toast('? — help'); break;
+
+    /* ---- misc ---- */
+    case 'BS':    toast('BACK SPACE'); break;
+    case 'ITEM':  toast('ITEM — iteration 2'); break;
+    case 'INFO':  goPage('alarm'); break;
+    case 'HELP':  toast('? HELP — context help on ' + state.page); break;
     case 'DIAGHELP': toast('DIAG/HELP'); break;
-    case 'DISP':   toast('DISP — switch layout'); break;
-    case 'PREV':   toast('◀ PREV screen'); break;
-    case 'NEXT':   toast('▶ NEXT screen'); break;
-    case 'F1': case 'F2': case 'F3': case 'F4': case 'F5':
-      toast('Soft key ' + btn); break;
+    case 'DISP':  toast('DISP — split screen (iteration 4)'); break;
     case '0': case '1': case '2': case '3': case '4':
-    case '5': case '6': case '7': case '8': case '9':
+    case '5': case '6': case '7': case '8': case '9': {
+      // On a numbered menu page, digits jump to that entry
+      const p = PAGES[state.page];
+      if (p && p.rows) {
+        const n = parseInt(btn, 10);
+        const rows = p.rows();
+        const idx = n === 0 ? rows.length - 1 : n - 1;
+        if (idx >= 0 && idx < rows.length) {
+          state.cursor = idx;
+          renderPage();
+          if (p.onEnter) setTimeout(() => p.onEnter(idx), 120);
+        }
+      }
+      break;
+    }
     case 'DOT': case 'MINUS':
-      toast('KEY ' + (btn === 'DOT' ? '.' : btn === 'MINUS' ? '-' : btn));
+      toast('KEY ' + (btn === 'DOT' ? '.' : '-'));
       break;
   }
 }
@@ -752,147 +1143,24 @@ function bumpSpeed(delta) {
   state.speedOverride = Math.max(0, Math.min(100, state.speedOverride + delta));
   toast('SPEED: ' + state.speedOverride + '%');
   refreshStatus();
+  if (state.page === 'utilHints' || state.page === 'status') renderPage();
 }
 
-let screenView = 'home';
-const body = document.getElementById('screenBody');
-const fk = [1,2,3,4,5].map(i => document.getElementById('fk' + i));
-function setSoftKeys(arr) { for (let i = 0; i < 5; i++) fk[i].textContent = arr[i] || '—'; }
-
-function showPosition() {
-  screenView = 'position';
-  if (state.coord === 'JOINT') {
-    body.innerHTML = `
-      <div style="color: var(--screen-accent); margin-bottom: 4px;">JOINT POSITION</div>
-      ${state.positions.map((v, i) => `
-        <div style="display:flex;justify-content:space-between;color:#c8ffd0;">
-          <span>J${i+1}:</span><span>${v.toFixed(3)}°</span>
-        </div>`).join('')}
-    `;
-  } else {
-    body.innerHTML = `
-      <div style="color: var(--screen-accent); margin-bottom: 4px;">CARTESIAN POSITION (${state.coord})</div>
-      <div style="display:flex;justify-content:space-between;"><span>X:</span><span>${state.cart.x.toFixed(2)} mm</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>Y:</span><span>${state.cart.y.toFixed(2)} mm</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>Z:</span><span>${state.cart.z.toFixed(2)} mm</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>W:</span><span>${state.cart.w.toFixed(2)}°</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>P:</span><span>${state.cart.p.toFixed(2)}°</span></div>
-      <div style="display:flex;justify-content:space-between;"><span>R:</span><span>${state.cart.r.toFixed(2)}°</span></div>
-    `;
-  }
-  setSoftKeys(['JOINT', 'USER', 'WORLD', '', '>']);
-}
-
-function showStatus() {
-  screenView = 'status';
-  body.innerHTML = `
-    <div style="color: var(--screen-accent); margin-bottom: 4px;">ROBOT STATUS</div>
-    <div>Controller : R-30iA</div>
-    <div>Robot      : R-2000iC/165F</div>
-    <div>Version    : V8.30P/15</div>
-    <div>Servo      : ${state.estop ? 'OFF' : 'READY'}</div>
-    <div>Faults     : ${state.fault ? 'YES' : 'NONE'}</div>
-    <div>E-Stop     : ${state.estop ? 'PRESSED' : 'OK'}</div>
-    <div>Mode       : ${state.mode}</div>
-    <div>Deadman    : ${deadmanHeld() ? 'HELD' : 'RELEASED'}</div>
-  `;
-  setSoftKeys(['DETAIL', 'ALARM', 'MEMORY', '', '>']);
-}
-function showEdit()  { screenView = 'edit';  body.innerHTML = '<div style="color: var(--screen-accent);">EDIT</div><div>No program loaded.</div><div>Press SELECT to choose program.</div>'; setSoftKeys(['POINT','','','','>']); }
-function showData()  { screenView = 'data';  body.innerHTML = `
-    <div style="color: var(--screen-accent); margin-bottom:4px;">DATA / REGISTERS</div>
-    <div>R[1]  = 0.000</div>
-    <div>R[2]  = 0.000</div>
-    <div>R[3]  = 0.000</div>
-    <div>PR[1] = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)</div>
-    <div>PR[2] = —</div>`;
-  setSoftKeys(['TYPE','','','','>']);
-}
-
-const menus = {
-  main: {
-    title: 'SYSTEM MENU',
-    items: [
-      ['UTILITIES',   () => toast('UTILITIES')],
-      ['TEST CYCLE',  () => toast('TEST CYCLE')],
-      ['MANUAL FCTNS',() => toast('MANUAL FCTNS')],
-      ['ALARM',       () => { state.fault = false; showStatus(); }],
-      ['I/O',         () => { screenView='io'; body.innerHTML='<div style="color:var(--screen-accent);">I/O</div><div>DI[1-8]: 00000000</div><div>DO[1-8]: 00000000</div><div>UI[1-8]: 00000000</div><div>UO[1-8]: 00000000</div>'; setSoftKeys(['IN/OUT','','CONFIG','','>']); }],
-      ['SETUP',       () => showMenu('setup')],
-      ['FILE',        () => toast('FILE')],
-      ['USER',        () => toast('USER')],
-      ['SELECT',      () => showMenu('select')],
-      ['EDIT',        () => showEdit()],
-      ['DATA',        () => showData()],
-      ['STATUS',      () => showStatus()],
-      ['POSITION',    () => showPosition()],
-      ['SYSTEM',      () => showMenu('system')],
-    ],
-  },
-  setup: {
-    title: 'SETUP',
-    items: [
-      ['FRAMES',      () => toast('FRAMES')],
-      ['MASTERING',   () => toast('MASTERING')],
-      ['GENERAL',     () => toast('GENERAL')],
-      ['COORD SYSTEM',() => { const i = COORDS.indexOf(state.coord); state.coord = COORDS[(i+1)%COORDS.length]; refreshStatus(); toast('COORD: '+state.coord); }],
-      ['◀ BACK',      () => showMenu('main')],
-    ],
-  },
-  select: {
-    title: 'SELECT PROGRAM',
-    items: [
-      ['— No programs —', () => toast('No programs stored')],
-      ['CREATE NEW',      () => toast('CREATE — enter name via keypad')],
-      ['◀ BACK',          () => showMenu('main')],
-    ],
-  },
-  fctn: {
-    title: 'FCTN',
-    items: [
-      ['ABORT ALL',       () => { stopAllJog(); toast('ABORT ALL'); }],
-      ['DISABLE FWD/BWD', () => toast('DISABLE FWD/BWD')],
-      ['CHANGE GROUP',    () => { state.group = state.group===1?2:1; refreshStatus(); toast('GROUP: '+state.group); }],
-      ['TOGGLE SUBGROUP', () => toast('SUBGROUP')],
-      ['RELEASE WAIT',    () => toast('RELEASE WAIT')],
-      ['◀ BACK',          () => showMenu('main')],
-    ],
-  },
-  system: {
-    title: 'SYSTEM',
-    items: [
-      ['VARIABLES',    () => toast('VARIABLES')],
-      ['CONFIG',       () => toast('CONFIG')],
-      ['VERSION',      () => showStatus()],
-      ['DIAGNOSTICS',  () => toast('DIAGNOSTICS')],
-      ['◀ BACK',       () => showMenu('main')],
-    ],
-  },
-};
-
-function showMenu(which) {
-  const m = menus[which];
-  if (!m) return;
-  document.getElementById('menuTitle').textContent = m.title;
-  const c = document.getElementById('menuContent');
-  c.innerHTML = '';
-  m.items.forEach(([label, fn]) => {
-    const el = document.createElement('div');
-    el.className = 'menu-item';
-    el.textContent = label;
-    el.addEventListener('click', () => { closeMenu(); setTimeout(fn, 80); });
-    c.appendChild(el);
-  });
-  document.getElementById('menuOverlay').classList.add('show');
-}
-function closeMenu() {
-  document.getElementById('menuOverlay').classList.remove('show');
-}
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+/* =====================================================================
+   INIT
+   ===================================================================== */
 refreshStatus();
+renderPage();
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') goBack();
+  if (e.key === 'ArrowUp')    moveCursor(-1);
+  if (e.key === 'ArrowDown')  moveCursor(+1);
+  if (e.key === 'Enter')      activateCursor();
+});
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopAllJog(); });
 window.addEventListener('blur', stopAllJog);
 </script>
+
 </body>
 </html>
