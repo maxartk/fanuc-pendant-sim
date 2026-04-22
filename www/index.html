@@ -19,10 +19,16 @@
     --key-white:       #f5f2e8;
     --label:           #1a1a1a;
     --sublabel:        #555;
-    --screen-bg:       #0d1a0d;
-    --screen-fg:       #c8ffd0;
-    --screen-hdr:      #1e3a5f;
-    --screen-accent:   #00ff88;
+    --screen-bg:       #dcdce0;
+    --screen-fg:       #000000;
+    --screen-hdr:      #2a2a2a;
+    --screen-accent:   #3b7dd8;
+    --screen-alt:      #f4f4f6;
+    --led-on-green:    #2fb02f;
+    --led-off-gray:    #7a7d84;
+    --menu-hdr-bg:     #3a3a3a;
+    --menu-sel-bg:     #2e6fd8;
+    --cascade-bar:     #cccccc;
     --led-on-grn:      #3dff6b;
     --led-on-red:      #ff3838;
     --led-off:         #2a2a2a;
@@ -128,78 +134,200 @@
   }
   .screen {
     background: var(--screen-bg); border-radius: 3px;
-    padding: 0; min-height: 150px;
-    font-family: 'Courier New', monospace;
+    padding: 0; min-height: 170px;
+    font-family: 'Arial', 'Helvetica Neue', sans-serif;
     color: var(--screen-fg);
     display: flex; flex-direction: column;
     overflow: hidden; position: relative;
-    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+    border: 1px solid #000;
   }
+
+  /* ---- FANUC status bar (top two rows) ---- */
   .screen-topbar {
-    background: var(--screen-hdr); color: #fff;
-    font-size: 10px; padding: 3px 6px;
+    background: #e4e4e8;
+    color: #000;
+    font-size: 9px;
+    padding: 2px 3px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    border-bottom: 1px solid #9a9a9e;
+    min-height: 18px;
+  }
+  .screen-topbar .sb-leds {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    grid-auto-rows: auto;
+    gap: 1px 2px;
+    font-size: 8px;
+    font-weight: 700;
+  }
+  .screen-topbar .sb-led {
+    padding: 1px 4px;
+    border: 1px solid #888;
+    background: #cfcfd2;
+    color: #555;
+    text-align: center;
+    min-width: 28px;
+    border-radius: 1px;
+  }
+  .screen-topbar .sb-led.on     { background: var(--led-on-green); color: #fff; border-color: #1a7a1a; }
+  .screen-topbar .sb-led.on-amb { background: #e6b800; color: #000; border-color: #8a6600; }
+  .screen-topbar .sb-led.on-red { background: #d22; color: #fff; border-color: #811; }
+
+  .screen-topbar .sb-txt {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    line-height: 1.15;
+    color: #000;
+    padding: 0 4px;
+    overflow: hidden;
+  }
+  .screen-topbar .sb-txt .row1 { }
+  .screen-topbar .sb-txt .row2 { }
+  .screen-topbar .sb-txt .tag {
+    display: inline-block; padding: 0 3px; margin: 0 1px;
+    background: #2fb02f; color: #fff; border-radius: 1px;
+    font-weight: 700;
+  }
+  .screen-topbar .sb-txt .tag-w { background: #fff; color: #000; border: 1px solid #888; }
+  .screen-topbar .sb-ovr {
+    background: #2fb02f; color: #fff; font-weight: 700;
+    padding: 2px 6px; font-size: 10px;
+    border: 1px solid #1a7a1a; border-radius: 2px;
+  }
+
+  /* ---- Screen title bar (per-page) ---- */
+  .screen-titlebar {
+    background: #b0b4bc;
+    color: #000;
+    font-size: 9px;
+    padding: 1px 4px;
+    display: flex; gap: 4px; align-items: center;
+    border-bottom: 1px solid #888;
+    font-weight: 700;
+    min-height: 16px;
+  }
+  .screen-titlebar .stb-page {
+    flex: 1;
+    color: #000;
+  }
+  .screen-titlebar .stb-right {
+    color: #555;
+    font-weight: 400;
+  }
+
+  /* ---- Screen statusbar (our legacy line) ---- */
+  .screen-statusbar { display: none; }
+
+  .screen-body {
+    flex: 1; padding: 0;
+    font-size: 11px; line-height: 1.3;
+    overflow-y: auto;
+    background: var(--screen-bg);
+    color: #000;
+    position: relative;
+  }
+
+  /* ---- Cascade menu layout ---- */
+  .cascade {
+    display: flex;
+    align-items: stretch;
+    min-height: 100%;
+    background: var(--cascade-bar);
+  }
+  .cascade-col {
+    min-width: 92px;
+    max-width: 180px;
+    flex: 1 1 120px;
+    background: var(--screen-alt);
+    border-right: 1px solid #9a9a9e;
+    display: flex; flex-direction: column;
+  }
+  .cascade-col:last-child { border-right: none; }
+
+  .cascade-hdr {
+    background: var(--menu-hdr-bg);
+    color: #fff;
+    font-weight: 700;
+    padding: 2px 6px;
+    font-size: 10px;
+    border-bottom: 1px solid #000;
+    display: flex; justify-content: space-between;
+  }
+
+  .cascade-body { flex: 1; }
+
+  /* ---- Page titlebar used by non-cascade pages ---- */
+  .pg-title {
+    background: var(--menu-hdr-bg);
+    color: #fff;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 700;
     display: flex; justify-content: space-between;
     border-bottom: 1px solid #000;
   }
-  .screen-statusbar {
-    background: #001a0a; color: var(--screen-accent);
-    font-size: 10px; padding: 3px 6px;
-    display: flex; gap: 10px; flex-wrap: wrap;
-    border-bottom: 1px solid #0a3a1a;
-  }
-  .screen-statusbar .sb-item { display: flex; gap: 4px; }
-  .screen-statusbar .sb-label { color: #6a9a6a; }
-  .screen-body {
-    flex: 1; padding: 8px 10px;
-    font-size: 11px; line-height: 1.45;
-    overflow-y: auto;
-  }
+  .pg-title .pg-sub { color: #c0c0c0; font-weight: 400; }
 
-  /* ---- Screen page layout (FANUC look) ---- */
-  .pg-title {
-    color: #ffffff;
-    background: #004a8a;
-    padding: 2px 6px;
-    margin: -8px -10px 6px -10px;
-    font-size: 11px;
-    font-weight: 700;
-    display: flex; justify-content: space-between;
-    border-bottom: 1px solid #001a3a;
-  }
-  .pg-title .pg-sub { color: #b0d0f0; font-weight: 400; }
+  .pg-list { display: flex; flex-direction: column; }
 
-  .pg-list { display: flex; flex-direction: column; gap: 0; }
   .pg-row {
     display: flex; justify-content: space-between;
-    padding: 1px 4px;
-    color: var(--screen-fg);
-    font-family: 'Courier New', monospace;
-    white-space: pre;
-    border-left: 3px solid transparent;
+    padding: 2px 6px;
+    color: #000;
+    background: var(--screen-alt);
+    font-family: 'Arial', 'Helvetica Neue', sans-serif;
+    font-size: 11px;
+    border-bottom: 1px solid #e4e4e8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
+  .pg-row:hover { background: #eef2f8; }
   .pg-row.sel {
-    background: #2a4a2a;
+    background: var(--menu-sel-bg);
     color: #fff;
-    border-left-color: var(--screen-accent);
+    font-weight: 700;
   }
   .pg-row.sel-edit {
-    background: #6a4a0a;
-    color: #fff;
-    border-left-color: #ffaa00;
+    background: #e6b800;
+    color: #000;
+    font-weight: 700;
   }
-  .pg-row .k-col { color: #9acbff; width: 2.2em; display: inline-block; text-align: right; margin-right: 6px; }
-  .pg-row .v-col { color: #fff; }
-  .pg-row .end-arrow { color: #6a9a6a; margin-left: auto; }
+  .pg-row .tri {
+    color: #444;
+    margin-left: 6px;
+    font-size: 10px;
+  }
+  .pg-row.sel .tri { color: #fff; }
+  .pg-row.comment {
+    background: #fff0a0;
+    color: #000;
+  }
+
+  /* Split-layout row pieces still used by Position/Data custom pages */
+  .pg-row .k-col { color: #555; width: 3em; display: inline-block; text-align: right; margin-right: 6px; font-family: 'Courier New', monospace; }
+  .pg-row .v-col { color: #000; font-family: 'Courier New', monospace; }
+  .pg-row.sel .k-col, .pg-row.sel .v-col { color: #fff; }
 
   .pg-section {
-    color: #ffaa00;
+    color: #000;
+    background: #d8d8dc;
     font-weight: 700;
-    padding: 3px 4px 2px 4px;
-    margin-top: 4px;
-    border-bottom: 1px solid #0a3a1a;
+    padding: 2px 6px;
+    border-bottom: 1px solid #9a9a9e;
+    font-size: 10px;
   }
 
-  .pg-hint { color: #6a9a6a; font-size: 10px; margin-top: 6px; }
+  .pg-hint {
+    color: #555;
+    font-size: 9px;
+    padding: 3px 6px;
+    background: #eef0f2;
+    border-top: 1px solid #cfcfd2;
+  }
   .pg-mono { font-family: 'Courier New', monospace; }
 
   /* Blink cursor for input */
@@ -213,45 +341,46 @@
   /* ---- On-screen popup (FCTN menu / confirmations) ---- */
   .pg-popup {
     position: absolute;
-    top: 32px; left: 8px; right: 8px;
-    background: #0e1a2a;
-    border: 2px solid var(--screen-accent);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+    top: 24px; left: 10px; right: 10px;
+    background: var(--screen-alt);
+    border: 1px solid #000;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.35);
     z-index: 5;
-    font-family: 'Courier New', monospace;
+    font-family: 'Arial', 'Helvetica Neue', sans-serif;
   }
   .pg-popup .pop-title {
-    background: var(--screen-accent);
-    color: #000;
+    background: var(--menu-hdr-bg);
+    color: #fff;
     font-weight: 700;
     padding: 2px 6px;
     font-size: 10px;
+    border-bottom: 1px solid #000;
   }
   .pg-popup .pop-item {
     padding: 3px 8px;
-    color: #c8ffd0;
+    color: #000;
     font-size: 11px;
+    border-bottom: 1px solid #e4e4e8;
   }
   .pg-popup .pop-item.sel {
-    background: #2a4a2a;
+    background: var(--menu-sel-bg);
     color: #fff;
-    border-left: 3px solid var(--screen-accent);
-    padding-left: 5px;
+    font-weight: 700;
   }
 
   /* ---- Edit mode banner ---- */
   .edit-bar {
-    background: #6a4a0a;
-    color: #fff;
-    padding: 4px 6px;
+    background: #ffeb66;
+    color: #000;
+    padding: 3px 6px;
     font-size: 11px;
     font-family: 'Courier New', monospace;
-    margin: 6px -10px -8px -10px;
     display: flex; gap: 6px; align-items: center;
     border-top: 1px solid #000;
+    border-bottom: 1px solid #000;
   }
-  .edit-bar .lbl { color: #ffd080; }
-  .edit-bar .buf { color: #fff; font-weight: 700; }
+  .edit-bar .lbl { color: #884400; font-weight: 700; }
+  .edit-bar .buf { color: #000; font-weight: 700; }
   .edit-bar .caret::after {
     content: '_';
     animation: cb 0.8s step-end infinite;
@@ -259,14 +388,14 @@
 
   /* ---- Progress bar ---- */
   .prog-bar {
-    background: #002a10;
-    border: 1px solid #0a3a1a;
+    background: #fff;
+    border: 1px solid #888;
     height: 14px;
-    margin: 6px 0;
+    margin: 4px 6px;
     position: relative;
   }
   .prog-bar > div {
-    background: var(--screen-accent);
+    background: var(--led-on-green);
     height: 100%;
     transition: width 0.15s;
   }
@@ -277,15 +406,30 @@
     line-height: 14px;
   }
   .screen-fkeys {
-    display: grid; grid-template-columns: repeat(5, 1fr);
-    font-size: 9px; background: #001408; color: #8adb9a;
-    border-top: 1px solid #0a3a1a;
+    display: grid; grid-template-columns: 22px repeat(5, 1fr) 22px;
+    background: #b0b4bc;
+    border-top: 1px solid #888;
+    min-height: 20px;
   }
-  .screen-fkeys div {
-    padding: 3px 2px; text-align: center;
-    border-right: 1px solid #0a2a14; text-transform: uppercase;
+  .screen-fkeys .fk {
+    padding: 2px 2px; text-align: center;
+    border-right: 1px solid #888;
+    background: var(--screen-alt);
+    color: #000;
+    font-size: 9px;
+    font-family: 'Arial', sans-serif;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
   }
-  .screen-fkeys div:last-child { border-right: none; }
+  .screen-fkeys .fk-left,
+  .screen-fkeys .fk-right {
+    background: #e0e2e6;
+    color: #888;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+  .screen-fkeys .fk-left { color: #d35400; }
+  .screen-fkeys .fk:last-of-type { border-right: none; }
 
   .estop-overlay {
     position: absolute; inset: 0;
@@ -576,28 +720,44 @@
     <div class="screen">
       <div class="estop-overlay" id="estopOverlay">E-STOP</div>
       <div class="screen-topbar">
-        <span id="progLine">Busy Step Hold Fault</span>
-        <span id="progName">— No Program —</span>
+        <div class="sb-leds">
+          <div class="sb-led" id="ledBusy">Busy</div>
+          <div class="sb-led" id="ledStep">Step</div>
+          <div class="sb-led" id="ledHold">Hold</div>
+          <div class="sb-led" id="ledFaultTop">Fault</div>
+          <div class="sb-led" id="ledRun">Run</div>
+          <div class="sb-led" id="ledIO">I/O</div>
+          <div class="sb-led" id="ledProd">Prod</div>
+          <div class="sb-led" id="ledTCyc">TCyc</div>
+        </div>
+        <div class="sb-txt">
+          <div class="row1" id="sbRow1">— No Program —</div>
+          <div class="row2" id="sbRow2">&nbsp;</div>
+        </div>
+        <div class="sb-ovr" id="sbOvr">100%</div>
       </div>
-      <div class="screen-statusbar">
-        <div class="sb-item"><span class="sb-label">COORD</span><span id="sbCoord">JOINT</span></div>
-        <div class="sb-item"><span class="sb-label">SPD</span><span id="sbSpeed">100%</span></div>
-        <div class="sb-item"><span class="sb-label">MODE</span><span id="sbMode">T1</span></div>
-        <div class="sb-item"><span class="sb-label">GRP</span><span id="sbGroup">1</span></div>
+      <div class="screen-titlebar">
+        <span class="stb-page" id="stbPage">HOME</span>
+        <span class="stb-right" id="stbRight"></span>
       </div>
       <div class="screen-body" id="screenBody">
-        <div style="color: var(--screen-accent); margin-bottom: 6px;">== FANUC R-30iA ==</div>
-        <div style="color: #8adb9a;">Controller ready.</div>
-        <div style="color: #8adb9a;">Robot: R-2000iC/165F</div>
-        <div style="color: #8adb9a; margin-top: 6px;">Press MENU for main menu.</div>
-        <div style="color: #6a9a6a; margin-top: 8px; font-size: 10px;">Hold DEADMAN to enable jog.</div>
+        <div class="pg-section">UTILITIES  Hints</div>
+        <div style="padding: 6px;">
+          <div>Controller: R-30iA</div>
+          <div>Robot: R-2000iC/165F</div>
+          <div>Software: V8.30P/15</div>
+          <div style="margin-top: 6px; color: #555;">Press MENU to open system menu.</div>
+          <div style="margin-top: 3px; color: #555;">Hold DEADMAN to enable jog.</div>
+        </div>
       </div>
       <div class="screen-fkeys">
-        <div id="fk1">—</div>
-        <div id="fk2">—</div>
-        <div id="fk3">—</div>
-        <div id="fk4">—</div>
-        <div id="fk5">—</div>
+        <div class="fk-left">&#10006;</div>
+        <div class="fk" id="fk1">—</div>
+        <div class="fk" id="fk2">—</div>
+        <div class="fk" id="fk3">—</div>
+        <div class="fk" id="fk4">—</div>
+        <div class="fk" id="fk5">—</div>
+        <div class="fk-right">&gt;</div>
       </div>
     </div>
   </div>
@@ -775,6 +935,15 @@ const state = {
   cursor: 0,
   pageStack: [],         // for PREV returning
 
+  // main-menu state
+  menuPage: 1,           // 1 or 2
+  cascadeSub: null,      // active submenu key, e.g. 'utilities'
+  subCursor: 0,
+
+  // program state (used by status bar)
+  program: null,
+  progLine: 0,
+
   // modal popup (FCTN, confirmations)
   modal: null,
 
@@ -812,6 +981,24 @@ const state = {
   uIn:  new Array(32).fill(0),
   uOut: new Array(32).fill(0),
   ioPage: 'DO',
+
+  // programs (TP files)
+  programs: [
+    { name: 'HOME.TP', lines: 5, date: '10-APR-26' },
+    { name: 'SAMPLE1.TP', lines: 12, date: '10-APR-26' },
+    { name: 'TEST.TP', lines: 8, date: '15-APR-26' },
+  ],
+  currentProgram: null,
+  editLine: 0,
+  tpLines: null,
+  tpUndoStack: [],
+
+  // DISP split screen
+  dispSplit: false,
+  dispPage: 'position',
+
+  // system variables
+  sysVars: { 1: 0, 2: 1, 3: 100, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 },
 };
 
 /* ---------- Toast ---------- */
@@ -836,13 +1023,69 @@ function canJog() {
 
 /* ---------- Status bar (persistent at top of screen) ---------- */
 function refreshStatus() {
-  document.getElementById('sbCoord').textContent = state.coord;
-  document.getElementById('sbSpeed').textContent = state.speedOverride + '%';
-  document.getElementById('sbMode').textContent  = state.mode;
-  document.getElementById('sbGroup').textContent = state.group;
+  // LED strip on top
+  setLed('ledBusy', false);
+  setLed('ledStep', state.step);
+  setLed('ledHold', state.hold);
+  setLed('ledFaultTop', state.estop || state.fault, 'on-red');
+  setLed('ledRun',  false);
+  setLed('ledIO',   false);
+  setLed('ledProd', false);
+  setLed('ledTCyc', false);
+
+  // Speed override box (green -> amber -> red as it drops)
+  const ovrEl = document.getElementById('sbOvr');
+  if (ovrEl) {
+    ovrEl.textContent = state.speedOverride + '%';
+    ovrEl.style.background = state.speedOverride >= 50 ? '#2fb02f'
+                           : state.speedOverride >= 10 ? '#e6b800'
+                           : '#d22';
+    ovrEl.style.color = '#fff';
+  }
+
+  // Two text rows
+  const r1 = document.getElementById('sbRow1');
+  const r2 = document.getElementById('sbRow2');
+  if (r1 && r2) {
+    if (state.estop) {
+      r1.innerHTML = '<span style="color:#d22;font-weight:700">SRVO-002 Teach Pendant E-stop</span>';
+    } else if (state.fault) {
+      r1.innerHTML = '<span style="color:#d22;font-weight:700">SRVO-001 Operator panel E-stop</span>';
+    } else {
+      r1.textContent = state.program ? ('MAIN  LINE ' + (state.progLine || 0)) : '— No Program —';
+    }
+    const modeTag = '<span class="tag">' + state.mode + '</span>';
+    const coordTag = '<span class="tag-w">' + state.coord + '</span>';
+    r2.innerHTML = modeTag + ' ' + (state.hold ? 'PAUSED' : (state.program ? 'RUNNING' : 'STOPPED')) + ' ' + coordTag;
+  }
+
+  // Bottom LED on case
   document.getElementById('ledFault').className =
     'led-dot' + (state.estop || state.fault ? ' on-red' : '');
   document.getElementById('estopOverlay').classList.toggle('show', state.estop);
+
+  // Per-page title bar
+  updatePageTitle();
+}
+
+function setLed(id, on, onClass) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = 'sb-led' + (on ? (' ' + (onClass || 'on')) : '');
+}
+
+function updatePageTitle() {
+  const el = document.getElementById('stbPage');
+  const rt = document.getElementById('stbRight');
+  if (!el) return;
+  const p = PAGES[state.page];
+  if (!p) { el.textContent = state.page; if (rt) rt.textContent = ''; return; }
+  const title = typeof p.title === 'function' ? p.title() : p.title;
+  el.textContent = title;
+  if (rt) {
+    const sub = typeof p.subtitle === 'function' ? p.subtitle() : (p.subtitle || '');
+    rt.textContent = sub;
+  }
 }
 
 /* ---------- Jog logic ---------- */
@@ -971,15 +1214,24 @@ function renderPage() {
   if (!p) {
     body.innerHTML = `<div class="pg-title">ERROR<span class="pg-sub">unknown page</span></div><div>Page '${state.page}' not found.</div>`;
     setSoftKeys([]);
+    updatePageTitle();
     return;
   }
 
-  const title    = typeof p.title    === 'function' ? p.title()    : p.title;
-  const subtitle = typeof p.subtitle === 'function' ? p.subtitle() : (p.subtitle || '');
+  let html = '';
 
-  let html = `<div class="pg-title"><span>${title}</span><span class="pg-sub">${subtitle}</span></div>`;
-
-  if (p.custom) {
+  if (p.cascade) {
+    // Cascade view: show main column + optional submenu column
+    html += '<div class="cascade">';
+    html += renderCascadeCol('MENU ' + (state.menuPage || 1), (state.menuPage === 2 ? MENU2_ITEMS : MENU1_ITEMS), state.cursor, false);
+    if (state.cascadeSub) {
+      const sub = CASCADE_SUBS[state.cascadeSub];
+      if (sub) {
+        html += renderCascadeCol(sub.title, sub.items.map((it, i) => ' ' + (i<9?(i+1):(i===9?0:' ')) + '  ' + it.label), state.subCursor || 0, true);
+      }
+    }
+    html += '</div>';
+  } else if (p.custom) {
     html += p.custom();
   } else if (p.rows) {
     const rows = p.rows();
@@ -1009,9 +1261,25 @@ function renderPage() {
 
   body.innerHTML = html;
   setSoftKeys(p.softKeys || []);
+  updatePageTitle();
 
   const sel = body.querySelector('.pg-row.sel, .pop-item.sel');
   if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function renderCascadeCol(title, rows, selIdx, isSub) {
+  let html = '<div class="cascade-col">';
+  html += `<div class="cascade-hdr"><span>${title}</span></div>`;
+  html += '<div class="cascade-body"><div class="pg-list">';
+  rows.forEach((r, i) => {
+    const sel = i === selIdx ? ' sel' : '';
+    const label = typeof r === 'string' ? r : r.label;
+    const hasArrow = typeof r === 'object' && r.arrow;
+    const arrow = hasArrow ? '<span class="tri">\u25b6</span>' : '';
+    html += `<div class="pg-row${sel}">${label}${arrow}</div>`;
+  });
+  html += '</div></div></div>';
+  return html;
 }
 
 function moveCursor(delta) {
@@ -1025,6 +1293,19 @@ function moveCursor(delta) {
   }
   const p = PAGES[state.page];
   if (!p) return;
+  if (p.cascade) {
+    if (state.cascadeSub) {
+      const sub = CASCADE_SUBS[state.cascadeSub];
+      const n = sub.items.length;
+      state.subCursor = (((state.subCursor || 0) + delta) % n + n) % n;
+    } else {
+      const items = state.menuPage === 2 ? MENU2_ITEMS : MENU1_ITEMS;
+      const n = items.length;
+      state.cursor = ((state.cursor + delta) % n + n) % n;
+    }
+    renderPage();
+    return;
+  }
   let count = 0;
   if (p.rows) count = p.rows().length;
   else if (p.navCount) count = p.navCount();
@@ -1042,6 +1323,11 @@ function activateCursor() {
   }
   const p = PAGES[state.page];
   if (!p) return;
+  if (p.cascade) {
+    if (state.cascadeSub) activateSubmenuItem();
+    else activateMainMenuItem();
+    return;
+  }
   if (p.onEnter) p.onEnter(state.cursor);
 }
 
@@ -1057,6 +1343,127 @@ function closeModal() {
 /* =====================================================================
    PAGE DEFINITIONS
    ===================================================================== */
+
+
+/* ---------- Main menu + submenu cascade data ---------- */
+
+const MENU1_ITEMS = [
+  { label: ' 1  UTILITIES',    target: 'utilities',    arrow: true },
+  { label: ' 2  TEST CYCLE',   target: 'testCycle' },
+  { label: ' 3  MANUAL FCTNS', target: 'manualFctns' },
+  { label: ' 4  ALARM',        target: 'alarmSub',    arrow: true },
+  { label: ' 5  I/O',          target: 'io',          arrow: true },
+  { label: ' 6  SETUP',        target: 'setup',       arrow: true },
+  { label: ' 7  FILE',         target: 'fileSub',     arrow: true },
+  { label: ' 8  iRVision',     target: 'irvision',    arrow: true },
+  { label: ' 9  USER',         target: 'userMenu' },
+  { label: ' 0  -- NEXT --',   target: '__next' },
+];
+
+const MENU2_ITEMS = [
+  { label: ' 1  SELECT',       target: 'select' },
+  { label: ' 2  EDIT',         target: 'edit' },
+  { label: ' 3  DATA',         target: 'data',        arrow: true },
+  { label: ' 4  STATUS',       target: 'statusSub',   arrow: true },
+  { label: ' 5  4D GRAPHICS',  target: 'fourdGraph',  arrow: true },
+  { label: ' 6  SYSTEM',       target: 'system',      arrow: true },
+  { label: ' 7  USER2',        target: 'user2' },
+  { label: ' 8  BROWSER',      target: 'browser',     arrow: true },
+  { label: ' 9  ',             target: null },
+  { label: ' 0  -- NEXT --',   target: '__next' },
+];
+
+const CASCADE_SUBS = {
+  utilities: {
+    title: 'UTILITIES 1',
+    items: [
+      { label: 'Home',               target: 'utilHints' },
+      { label: 'Hints',              target: 'utilHints' },
+      { label: 'iRCalibration',      target: null },
+      { label: 'Robot Condition',    target: null },
+      { label: 'Prog Adjust',        target: null },
+      { label: 'Program Shift',      target: null },
+      { label: 'Mirror Image Shift', target: null },
+      { label: 'Tool Offset',        target: null },
+      { label: 'Frame Offset',       target: null },
+      { label: '-- NEXT --',         target: null },
+    ],
+  },
+  alarmSub: {
+    title: 'ALARM 1',
+    items: [
+      { label: 'Alarm Log',     target: 'alarm' },
+      { label: 'Motion Log',    target: 'alarm' },
+      { label: 'System Log',    target: 'alarm' },
+      { label: 'Appl Log',      target: 'alarm' },
+      { label: 'Password Log',  target: 'alarm' },
+      { label: 'Comm Log',      target: 'alarm' },
+    ],
+  },
+  statusSub: {
+    title: 'STATUS 1',
+    items: [
+      { label: 'Axis',              target: 'status' },
+      { label: 'Version ID',        target: 'status' },
+      { label: 'Stop Signal',       target: 'status' },
+      { label: 'Exec-hist',         target: 'status' },
+      { label: 'Memory',            target: 'status' },
+      { label: 'Motion Profiler',   target: 'status' },
+      { label: 'Robot Condition',   target: 'status' },
+      { label: 'Servo-off History', target: 'status' },
+      { label: 'Prg Timer',         target: 'status' },
+      { label: '-- NEXT --',        target: null },
+    ],
+  },
+  fileSub: {
+    title: 'FILE 1',
+    items: [
+      { label: 'File',        target: 'fileList' },
+      { label: 'File Memory', target: 'fileList' },
+      { label: 'Auto Backup', target: 'backup' },
+    ],
+  },
+};
+
+function openSubmenu(key) {
+  if (!CASCADE_SUBS[key]) { toast('(empty)'); return; }
+  state.cascadeSub = key;
+  state.subCursor = 0;
+  renderPage();
+}
+
+function closeSubmenu() {
+  state.cascadeSub = null;
+  state.subCursor = 0;
+  renderPage();
+}
+
+function activateMainMenuItem() {
+  const items = (state.menuPage === 2 ? MENU2_ITEMS : MENU1_ITEMS);
+  const item = items[state.cursor];
+  if (!item || !item.target) return;
+  if (item.target === '__next') {
+    state.menuPage = state.menuPage === 2 ? 1 : 2;
+    state.cursor = 0;
+    state.cascadeSub = null;
+    renderPage();
+    return;
+  }
+  if (item.arrow) {
+    openSubmenu(item.target);
+  } else {
+    goPage(item.target);
+  }
+}
+
+function activateSubmenuItem() {
+  const sub = CASCADE_SUBS[state.cascadeSub];
+  if (!sub) return;
+  const item = sub.items[state.subCursor || 0];
+  if (!item) return;
+  if (item.target) goPage(item.target);
+  else toast('(not implemented)');
+}
 
 const PAGES = {
 
@@ -1084,65 +1491,13 @@ const PAGES = {
     hint: 'Press MENU to open the system menu.',
   },
 
-  /* ---- Main system menu (two-column FANUC style) ---- */
+  /* ---- Main system menu (cascade, FANUC authentic) ---- */
   mainMenu: {
-    title: 'SYSTEM MENU',
-    subtitle: '1/2',
-    rows: () => [
-      ' 1  UTILITIES',
-      ' 2  TEST CYCLE',
-      ' 3  MANUAL FCTNS',
-      ' 4  ALARM',
-      ' 5  I/O',
-      ' 6  SETUP',
-      ' 7  FILE',
-      ' 8  ',
-      ' 9  USER',
-      ' 0  --NEXT--',
-    ],
+    cascade: true,
+    title: () => 'MENU ' + (state.menuPage || 1),
+    subtitle: '',
     softKeys: ['', '', '', '', '>'],
-    onEnter: (i) => {
-      const routes = [
-        'utilHints',   // UTILITIES
-        'testCycle',   // TEST CYCLE
-        'manualFctns', // MANUAL FCTNS
-        'alarm',       // ALARM
-        'io',          // I/O
-        'setup',       // SETUP
-        'fileList',    // FILE
-        null,
-        'userMenu',    // USER
-        'mainMenu2',   // NEXT
-      ];
-      if (routes[i]) goPage(routes[i]);
-    },
-    hint: 'Use ▲▼ to move, ENTER to open. NEXT → page 2/2.',
-  },
-
-  mainMenu2: {
-    title: 'SYSTEM MENU',
-    subtitle: '2/2',
-    rows: () => [
-      ' 1  SELECT',
-      ' 2  EDIT',
-      ' 3  DATA',
-      ' 4  STATUS',
-      ' 5  POSITION',
-      ' 6  SYSTEM',
-      ' 7  USER2',
-      ' 8  BROWSER',
-      ' 9  ',
-      ' 0  --NEXT--',
-    ],
-    softKeys: ['', '', '', '', '>'],
-    onEnter: (i) => {
-      const routes = [
-        'select','edit','data','status','position','system',
-        null,null,null,'mainMenu',
-      ];
-      if (routes[i]) goPage(routes[i]);
-    },
-    hint: 'ENTER to open. NEXT → back to page 1/2.',
+    hint: 'Use ▲▼ to move | ▶ opens submenu | ENTER activates | NEXT ⇄ page',
   },
 
   /* ---- Position (live, driven by jog) ---- */
@@ -1383,9 +1738,68 @@ const PAGES = {
   testCycle:   stub('TEST CYCLE',   'Cycle test (iter 4).'),
   manualFctns: stub('MANUAL FCTNS', 'Macro call (iter 4).'),
   userMenu:    stub('USER',         'User menu (iter 4).'),
-  select:      stub('SELECT',       'Program list (iter 3).'),
-  edit:        stub('EDIT',         'TP editor (iter 3).'),
-  system:      stub('SYSTEM',       'System variables (iter 4).'),
+  select: {
+    title: 'SELECT',
+    subtitle: 'Programs',
+    custom: () => renderPrograms(),
+    navCount: () => state.programs.length,
+    softKeys: ['CREATE', 'COPY', 'DEL', 'DETAIL', '>'],
+    onF: (i) => {
+      if (i === 0) createProgram();
+      else if (i === 1) copyProgram();
+      else if (i === 2) deleteProgram();
+      else if (i === 3) viewProgramDetail();
+    },
+    onEnter: (i) => {
+      if (state.programs[i]) {
+        state.currentProgram = state.programs[i].name;
+        goPage('edit');
+      }
+    },
+    hint: 'ENTER to edit | F1 CREATE | F2 COPY | F3 DEL',
+  },
+  edit: {
+    title: () => 'EDIT ' + (state.currentProgram || '—none—'),
+    subtitle: () => state.editLine ? 'Line ' + state.editLine : 'Ready',
+    custom: () => renderTPProgram(),
+    navCount: () => (state.tpLines ? state.tpLines.length : 1),
+    softKeys: ['INSERT', 'MODIFY', 'DEL', 'UNDO', '>'],
+    onF: (i) => {
+      if (i === 0) insertTPLine();
+      else if (i === 1) modifyTPLine();
+      else if (i === 2) deleteTPLine();
+      else if (i === 3) undoTPLine();
+    },
+    onEnter: (i) => editTPLine(i),
+    hint: 'ENTER edit line | F1 INSERT | F2 MODIFY | F3 DEL',
+  },
+  system: {
+    title: 'SYSTEM',
+    subtitle: 'Variables',
+    rows: () => [
+      ' 1  $SYSTEM[1]  = ' + state.sysVars[1],
+      ' 2  $SYSTEM[2]  = ' + state.sysVars[2],
+      ' 3  $SYSTEM[3]  = ' + state.sysVars[3],
+      ' 4  $SYSTEM[4]  = ' + state.sysVars[4],
+      ' 5  $SYSTEM[5]  = ' + state.sysVars[5],
+      ' 6  $SYSTEM[6]  = ' + state.sysVars[6],
+      ' 7  $SYSTEM[7]  = ' + state.sysVars[7],
+      ' 8  $SYSTEM[8]  = ' + state.sysVars[8],
+      ' 9  $SYSTEM[9]  = ' + state.sysVars[9],
+      ' 0  --NEXT--',
+    ],
+    softKeys: ['', '', '', '', '>'],
+    onEnter: (i) => {
+      if (i === 9) toast('Page 2 (iter 5)');
+      else startEdit({ target: { kind: 'sysVar', idx: i+1 }, label: '$SYSTEM[' + (i+1) + '] =', buffer: String(state.sysVars[i+1] || 0) });
+    },
+    hint: 'ENTER to edit value',
+  },
+
+  irvision:    stub('iRVision',    'Vision system — not simulated.'),
+  fourdGraph:  stub('4D GRAPHICS',  '3D robot view — not simulated.'),
+  browser:     stub('BROWSER',      'Web browser — not simulated.'),
+  user2:       stub('USER2',        'User menu 2.'),
 
   alarm: {
     title: 'ALARM',
@@ -1649,6 +2063,12 @@ function commitEdit() {
     if (!isNaN(val) && e.target.kind === 'numReg') {
       state.numReg[e.target.idx] = val;
       toast('R[' + (e.target.idx + 1) + '] = ' + val);
+    } else if (e.target.kind === 'sysVar') {
+      state.sysVars[e.target.idx] = val;
+      toast('$SYSTEM[' + e.target.idx + '] = ' + val);
+    } else if (e.target.kind === 'tpLine') {
+      state.tpLines[e.target.idx] = '  ' + (e.target.idx+1) + ': ' + (e.buffer || 'NOP ;');
+      toast('Line ' + (e.target.idx+1) + ' modified');
     } else {
       toast('Invalid entry');
     }
@@ -1696,6 +2116,73 @@ function stub(title, msg) {
 
 function fmt(v) { return (v >= 0 ? ' ' : '') + v.toFixed(3); }
 
+function renderPrograms() {
+  let html = '<div class="pg-section">TP PROGRAMS</div><div class="pg-list">';
+  state.programs.forEach((p, i) => {
+    const sel = i === state.cursor ? ' sel' : '';
+    html += '<div class="pg-row'+sel+'"><span> '+String(i+1).padStart(2)+'  '+p.name.padEnd(16).slice(0,16)+'  '+String(p.lines).padStart(4)+' L  '+p.date+'</span></div>';
+  });
+  html += '</div>'; return html;
+}
+
+function createProgram() {
+  let name = 'NEWPROG.TP', i = 1;
+  while (state.programs.some(p => p.name === name)) { name = 'NEWPROG' + i + '.TP'; i++; }
+  state.programs.push({ name, lines: 0, date: todayStr() });
+  toast('Created ' + name); renderPage();
+}
+
+function copyProgram() {
+  const p = state.programs[state.cursor]; if (!p) return;
+  let name = 'COPY_' + p.name, i = 1;
+  while (state.programs.some(pr => pr.name === name)) { name = 'COPY' + i + '_' + p.name; i++; }
+  state.programs.push({ name, lines: p.lines, date: todayStr() });
+  toast('Copied -> ' + name); renderPage();
+}
+
+function deleteProgram() {
+  const p = state.programs[state.cursor]; if (!p) return;
+  state.programs.splice(state.cursor, 1);
+  state.cursor = Math.max(0, state.cursor - 1);
+  toast('Deleted ' + p.name); renderPage();
+}
+
+function renderTPProgram() {
+  if (!state.tpLines) state.tpLines = ['/PROG  HOME','/ATTR','  1: J P[1] 100% ;','  2: L P[2] 500mm/sec ;','  3: END ;'];
+  let html = '<div class="pg-section">TP PROGRAM</div><div class="pg-list">';
+  state.tpLines.forEach((line, i) => {
+    const sel = i === state.cursor ? ' sel' : '';
+    html += '<div class="pg-row'+sel+'"><span>'+String(i+1).padStart(4)+': '+line.substring(0,45)+'</span></div>';
+  });
+  html += '</div>'; return html;
+}
+
+function insertTPLine() {
+  if (!state.tpLines) state.tpLines = [];
+  state.tpUndoStack.push(state.tpLines.slice());
+  state.tpLines.splice(state.cursor+1, 0, '  '+state.tpLines.length+': NOP ;');
+  toast('Line inserted'); renderPage();
+}
+
+function deleteTPLine() {
+  if (!state.tpLines || !state.tpLines.length) return;
+  state.tpUndoStack.push(state.tpLines.slice());
+  state.tpLines.splice(state.cursor, 1);
+  state.cursor = Math.max(0, state.cursor - 1);
+  toast('Line deleted'); renderPage();
+}
+
+function undoTPLine() {
+  if (!state.tpUndoStack.length) { toast('Nothing to undo'); return; }
+  state.tpLines = state.tpUndoStack.pop();
+  toast('Undo'); renderPage();
+}
+
+function toggleDispSplit() {
+  state.dispSplit = !state.dispSplit;
+  toast(state.dispSplit ? 'DISP: Split ON' : 'DISP: Full screen');
+}
+
 /* =====================================================================
    BUTTON HANDLING
    ===================================================================== */
@@ -1709,25 +2196,48 @@ function handleBtn(btn, el) {
     /* ---- navigation ---- */
     case 'UP':    moveCursor(-1); break;
     case 'DOWN':  moveCursor(+1); break;
-    case 'LEFT':  moveCursor(-1); break;   // placeholder
-    case 'RIGHT': moveCursor(+1); break;   // placeholder
+    case 'LEFT':
+      if (PAGES[state.page] && PAGES[state.page].cascade && state.cascadeSub) {
+        closeSubmenu();
+        break;
+      }
+      moveCursor(-1);
+      break;
+    case 'RIGHT':
+      if (PAGES[state.page] && PAGES[state.page].cascade && !state.cascadeSub) {
+        const items = state.menuPage === 2 ? MENU2_ITEMS : MENU1_ITEMS;
+        const item = items[state.cursor];
+        if (item && item.arrow) { openSubmenu(item.target); break; }
+      }
+      moveCursor(+1);
+      break;
     case 'ENTER':
       if (state.editing) { commitEdit(); break; }
       activateCursor();
       break;
     case 'PREV':
-      if (state.editing) { cancelEdit(); break; }
-      if (state.modal)   { closeModal();  break; }
+      if (state.editing)     { cancelEdit(); break; }
+      if (state.modal)       { closeModal();  break; }
+      if (state.cascadeSub)  { closeSubmenu(); break; }
       goBack();
       break;
     case 'NEXT':
-      // If we're on mainMenu ↔ mainMenu2 treat NEXT as page flip
-      if (state.page === 'mainMenu')  { goPage('mainMenu2', false); break; }
-      if (state.page === 'mainMenu2') { goPage('mainMenu',  false); break; }
+      if (state.page === 'mainMenu') {
+        state.menuPage = state.menuPage === 2 ? 1 : 2;
+        state.cursor = 0;
+        state.cascadeSub = null;
+        renderPage();
+        break;
+      }
       toast('NEXT'); break;
 
     /* ---- top-level screen keys ---- */
-    case 'MENU':   goPage('mainMenu'); break;
+    case 'MENU':
+      state.menuPage = 1;
+      state.cascadeSub = null;
+      state.cursor = 0;
+      goPage('mainMenu');
+      break;
     case 'SELECT': goPage('select'); break;
     case 'EDIT':   goPage('edit'); break;
     case 'DATA':   goPage('data'); break;
@@ -1820,7 +2330,7 @@ function handleBtn(btn, el) {
     case 'INFO':  goPage('alarm'); break;
     case 'HELP':  toast('? HELP — context help on ' + state.page); break;
     case 'DIAGHELP': toast('DIAG/HELP'); break;
-    case 'DISP':  toast('DISP — split screen (iteration 4)'); break;
+    case 'DISP': toggleDispSplit(); break;
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9': {
       if (state.editing) {
@@ -1839,6 +2349,27 @@ function handleBtn(btn, el) {
         break;
       }
       const p = PAGES[state.page];
+      if (p && p.cascade) {
+        const n = parseInt(btn, 10);
+        if (state.cascadeSub) {
+          const sub = CASCADE_SUBS[state.cascadeSub];
+          const idx = n === 0 ? sub.items.length - 1 : n - 1;
+          if (idx >= 0 && idx < sub.items.length) {
+            state.subCursor = idx;
+            renderPage();
+            setTimeout(activateSubmenuItem, 120);
+          }
+        } else {
+          const items = state.menuPage === 2 ? MENU2_ITEMS : MENU1_ITEMS;
+          const idx = n === 0 ? items.length - 1 : n - 1;
+          if (idx >= 0 && idx < items.length) {
+            state.cursor = idx;
+            renderPage();
+            setTimeout(activateMainMenuItem, 120);
+          }
+        }
+        break;
+      }
       if (p && p.rows) {
         const n = parseInt(btn, 10);
         const rows = p.rows();
