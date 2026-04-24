@@ -822,13 +822,13 @@
           <!-- Main column: 3x3 nav, util row, numpad, diag/help -->
           <div class="main-col">
 
-            <!-- 3x3 navigation pad with ? in the middle -->
+            <!-- 3x3 navigation pad (no ? button - real iPendant style) -->
             <div class="nav-pad">
               <div class="empty"></div>
               <div class="k k-nav" data-btn="UP">▲</div>
               <div class="empty"></div>
               <div class="k k-nav" data-btn="LEFT">◀</div>
-              <div class="k k-white k-q" data-btn="HELP">?</div>
+              <div class="k k-nav" data-btn="ITEM">ITEM</div>
               <div class="k k-nav" data-btn="RIGHT">▶</div>
               <div class="empty"></div>
               <div class="k k-nav" data-btn="DOWN">▼</div>
@@ -956,6 +956,7 @@ const state = {
   wristR: 0,
   dataType: 'R',
   strReg: null,
+  showAlarmHist: false,
 
   // screen navigation
   page: 'utilHints',
@@ -1933,22 +1934,51 @@ const PAGES = {
   alarm: {
     title: 'ALARM',
     subtitle: () => state.fault ? 'ACTIVE' : 'HISTORY',
-    rows: () => state.fault
-      ? [
-          ' 1  SRVO-002 Teach Pendant E-stop',
-          ' 2  SRVO-001 Operator panel E-stop',
-          ' 3  SYST-026 System normal power-up',
-        ]
-      : [
-          ' 1  -- no active alarms --',
-          ' 2  SYST-026 System normal power-up',
-          ' 3  SYST-010 Power failure recovery',
-        ],
+    rows: () => {
+      if (state.showAlarmHist) {
+        return [
+          ' 1  SRVO-002  24-APR-26 10:23',
+          ' 2  SRVO-001  24-APR-26 09:15',
+          ' 3  SYST-026  24-APR-26 08:00',
+          ' 4  SYST-010  23-APR-26 18:30',
+          ' 5  SRVO-062  23-APR-26 14:22',
+        ];
+      }
+      return state.fault
+        ? [
+            ' 1  SRVO-002 Teach Pendant E-stop',
+            ' 2  SRVO-001 Operator panel E-stop',
+            ' 3  SYST-026 System normal power-up',
+          ]
+        : [
+            ' 1  -- no active alarms --',
+            ' 2  SYST-026 System normal power-up',
+            ' 3  SYST-010 Power failure recovery',
+          ];
+    },
     softKeys: ['HIST', 'RES_1ALM', 'CLEAR', 'HELP', '>'],
     onF: (i) => {
-      if (i === 1 || i === 2) { state.fault = false; refreshStatus(); toast('ALARMS RESET'); renderPage(); }
+      if (i === 0) { // F1 HIST
+        state.showAlarmHist = !state.showAlarmHist;
+        toast(state.showAlarmHist ? 'ALARM HISTORY' : 'ACTIVE ALARMS');
+        renderPage();
+      }
+      else if (i === 1 || i === 2) { // F2 RES_1ALM, F3 CLEAR
+        state.fault = false;
+        state.showAlarmHist = false;
+        refreshStatus();
+        toast('ALARMS RESET');
+        renderPage();
+      }
+      else if (i === 3) { // F4 HELP
+        toast('ALARM HELP:');
+        toast('SRVO-002: Teach Pendant E-Stop pressed');
+        toast('SRVO-001: Operator Panel E-Stop pressed');
+        toast('SYST-026: Normal power-up (info)');
+      }
+      else if (i === 4) toast('NEXT page');
     },
-    hint: 'Press RESET key to clear active alarms.',
+    hint: 'F1 HIST | F2 RES_1ALM | F3 CLEAR | F4 HELP | RESET key to clear',
   },
 
   /* ---- OFFSET / PR Registers ---- */
