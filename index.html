@@ -954,6 +954,8 @@ const state = {
   prRegs: null,
   baseX: 0,
   wristR: 0,
+  dataType: 'R',
+  strReg: null,
 
   // screen navigation
   page: 'utilHints',
@@ -1593,7 +1595,32 @@ const PAGES = {
       ` Group       : ${state.group}`,
     ],
     softKeys: ['AXIS', 'SAFETY', 'VERSION', 'MEMORY', '>'],
-    hint: 'Press PREV to return.',
+    onF: (i) => {
+      if (i === 0) { // AXIS
+        toast('AXIS STATUS:');
+        toast(`J1:${fmt(state.positions[0])} J2:${fmt(state.positions[1])} J3:${fmt(state.positions[2])}`);
+        toast(`J4:${fmt(state.positions[3])} J5:${fmt(state.positions[4])} J6:${fmt(state.positions[5])}`);
+      }
+      if (i === 1) { // SAFETY
+        toast('SAFETY STATUS:');
+        toast(`E-Stop: ${state.estop ? 'PRESSED' : 'OK'}`);
+        toast(`Deadman: ${deadmanHeld() ? 'HELD' : 'RELEASED'}`);
+        toast(`Hold: ${state.hold ? 'ON' : 'OFF'}`);
+      }
+      if (i === 2) { // VERSION
+        toast('SOFTWARE VERSION:');
+        toast('R-30iA Controller V8.30P/15');
+        toast('Robot: R-2000iC/165F');
+      }
+      if (i === 3) { // MEMORY
+        const totalProg = state.programs.reduce((sum, p) => sum + p.lines, 0);
+        toast('MEMORY USAGE:');
+        toast(`TP Programs: ${state.programs.length} (${totalProg} lines)`);
+        toast(`Variables: ${Object.keys(state.sysVars).length}`);
+      }
+      if (i === 4) toast('NEXT page (not implemented)');
+    },
+    hint: 'F1 AXIS | F2 SAFETY | F3 VERSION | F4 MEMORY | PREV to return.',
   },
 
   /* ---- FILE: device selector ---- */
@@ -1704,38 +1731,106 @@ const PAGES = {
 
   data: {
     title: 'DATA',
-    subtitle: 'Numeric Registers',
-    custom: () => renderRegisters(),
-    navCount: () => state.numReg.length,
-    softKeys: ['[TYPE]', 'CLEAR', '', '', '>'],
+    subtitle: () => state.dataType + ' Registers',
+    custom: () => {
+      if (state.dataType === 'R') {
+        return renderRegisters();
+      } else if (state.dataType === 'PR') {
+        return renderPRRegisters();
+      } else if (state.dataType === 'SR') {
+        return renderSRRegisters();
+      }
+      return renderRegisters();
+    },
+    navCount: () => state.dataType === 'R' ? state.numReg.length : (state.dataType === 'PR' ? 10 : 20),
+    softKeys: ['[TYPE]', 'CLEAR', 'SET TO', 'COMPARE', '>'],
     onF: (i) => {
-      if (i === 0) toast('TYPE: R[] / PR[] / SR[]');
-      else if (i === 1) { state.numReg[state.cursor] = 0; renderPage(); toast('R[' + (state.cursor+1) + '] = 0'); }
+      if (i === 0) { // [TYPE]
+        const types = ['R', 'PR', 'SR'];
+        const idx = types.indexOf(state.dataType || 'R');
+        state.dataType = types[(idx + 1) % types.length];
+        state.cursor = 0;
+        toast('TYPE: ' + state.dataType + '[]');
+        renderPage();
+      }
+      else if (i === 1) { // CLEAR
+        if (state.dataType === 'R') {
+          state.numReg[state.cursor] = 0;
+          toast('R[' + (state.cursor+1) + '] = 0');
+        } else if (state.dataType === 'PR') {
+          if (!state.prRegs) state.prRegs = Array.from({length: 10}, () => ({x:0,y:0,z:0,w:0,p:0,r:0}));
+          Object.assign(state.prRegs[state.cursor], {x:0,y:0,z:0,w:0,p:0,r:0});
+          toast('PR[' + (state.cursor+1) + '] cleared');
+        }
+        renderPage();
+      }
+      else if (i === 2) { // SET TO
+        if (state.dataType === 'R') {
+          startEdit({ target: { kind: 'numReg', idx: state.cursor }, label: 'R[' + (state.cursor+1) + '] =', buffer: '' });
+        } else if (state.dataType === 'PR') {
+          toast('PR[' + (state.cursor+1) + '] SET TO (use POSITION screen)');
+        }
+      }
+      else if (i === 3) { // COMPARE
+        toast('COMPARE: Select reference register');
+      }
+      else if (i === 4) toast('NEXT page');
     },
     onEnter: (i) => {
-      startEdit({
-        target: { kind: 'numReg', idx: i },
-        label: 'R[' + (i + 1) + '] =',
-        buffer: '',
-      });
+      if (state.dataType === 'R') {
+        startEdit({ target: { kind: 'numReg', idx: i }, label: 'R[' + (i + 1) + '] =', buffer: '' });
+      } else if (state.dataType === 'PR') {
+        goPage('offset');
+        state.prIndex = i;
+        renderPage();
+      }
     },
-    hint: 'ENTER to edit | numpad types | ENTER confirm | PREV cancel',
+    hint: 'F1 TYPE | F2 CLEAR | F3 SET TO | F4 COMPARE | ENTER to edit',
   },
 
   io: {
-    title: () => 'I/O ' + state.ioPage,
-    subtitle: '[1-16]',
+    title: () => state.ioPage,
+    subtitle: () => `[1-${state.ioPage === 'AI' || state.ioPage === 'AO' ? '8' : '32'}]`,
     custom: () => renderIO(),
-    navCount: () => 16,
+    navCount: () => state.ioPage === 'AI' || state.ioPage === 'AO' ? 8 : 16,
     softKeys: ['[TYPE]', 'ON', 'OFF', 'SIM', '>'],
     onF: (i) => {
-      if (i === 0) cycleIOType();
-      else if (i === 1) setIO(state.cursor, 1);
-      else if (i === 2) setIO(state.cursor, 0);
-      else if (i === 3) toast('SIMULATE (iter 4)');
+      if (i === 0) { // [TYPE]
+        const types = ['DI','DO','UI','UO','RI','RO','AI','AO'];
+        const idx = types.indexOf(state.ioPage);
+        state.ioPage = types[(idx + 1) % types.length];
+        state.cursor = 0;
+        toast('I/O TYPE: ' + state.ioPage);
+        renderPage();
+      }
+      else if (i === 1) { // ON
+        if (state.ioPage === 'DI' || state.ioPage === 'UI' || state.ioPage === 'RI') {
+          toast(state.ioPage + '[' + (state.cursor+1) + '] = ON (read only)');
+        } else {
+          const arr = getIOArr();
+          arr[state.cursor] = 1;
+          toast(state.ioPage + '[' + (state.cursor+1) + '] = ON');
+          renderPage();
+        }
+      }
+      else if (i === 2) { // OFF
+        if (state.ioPage === 'DI' || state.ioPage === 'UI' || state.ioPage === 'RI') {
+          toast(state.ioPage + '[' + (state.cursor+1) + '] = OFF (read only)');
+        } else {
+          const arr = getIOArr();
+          arr[state.cursor] = 0;
+          toast(state.ioPage + '[' + (state.cursor+1) + '] = OFF');
+          renderPage();
+        }
+      }
+      else if (i === 3) { // SIM
+        toast('SIMULATE: ' + state.ioPage + '[' + (state.cursor+1) + ']');
+        toast('Temporary override active');
+      }
+      else if (i === 4) toast('NEXT page');
     },
     onEnter: (i) => toggleIO(i),
-    hint: 'ENTER toggles | F1 cycles DI/DO/UI/UO',
+    hint: 'F1 TYPE | F2 ON | F3 OFF | F4 SIM | ENTER toggles',
   },
 
   setup: {
@@ -2175,6 +2270,31 @@ function renderRegisters() {
   return html;
 }
 
+function renderPRRegisters() {
+  if (!state.prRegs) state.prRegs = Array.from({length: 10}, () => ({x:0,y:0,z:0,w:0,p:0,r:0}));
+  let html = '<div class="pg-section">POSITION REG  PR[1-10]</div><div class="pg-list">';
+  for (let i = 0; i < Math.min(10, state.prRegs.length); i++) {
+    const sel = i === state.cursor ? ' sel' : '';
+    const pr = state.prRegs[i];
+    const line = `PR[${String(i+1).padStart(2,' ')}]  X:${pr.x.toFixed(2)}  Y:${pr.y.toFixed(2)}  Z:${pr.z.toFixed(2)}`;
+    html += `<div class="pg-row${sel}"><span> ${line}</span></div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderSRRegisters() {
+  let html = '<div class="pg-section">STRING REG  SR[1-20]</div><div class="pg-list">';
+  if (!state.strReg) state.strReg = Array.from({length: 20}, () => '');
+  for (let i = 0; i < 20; i++) {
+    const sel = i === state.cursor ? ' sel' : '';
+    const line = `SR[${String(i+1).padStart(2,' ')}] = "${state.strReg[i] || ''}"`;
+    html += `<div class="pg-row${sel}"><span> ${line}</span></div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
 function startEdit(opts) { state.editing = opts; renderPage(); }
 
 function commitEdit() {
@@ -2206,7 +2326,15 @@ function commitEdit() {
 function cancelEdit() { state.editing = null; renderPage(); }
 
 function getIOArr() {
-  return ({ DI: state.dIn, DO: state.dOut, UI: state.uIn, UO: state.uOut })[state.ioPage];
+  const ioMap = {
+    DI: state.dIn, DO: state.dOut,
+    UI: state.uIn, UO: state.uOut,
+    RI: state.rIn || (state.rIn = new Array(32).fill(0)),
+    RO: state.rOut || (state.rOut = new Array(32).fill(0)),
+    AI: state.aIn || (state.aIn = new Array(8).fill(0)),
+    AO: state.aOut || (state.aOut = new Array(8).fill(0)),
+  };
+  return ioMap[state.ioPage] || state.dOut;
 }
 
 function renderIO() {
