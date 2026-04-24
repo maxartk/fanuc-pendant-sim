@@ -787,6 +787,20 @@
       </div>
     </div>
 
+    <!-- Program Edit Keys (real iPendant R-30iA style) -->
+    <div class="row-menu-wrap" style="margin-top: 4px;">
+      <div class="teach-label">PROGRAM</div>
+      <div class="row-menu" style="grid-template-columns: repeat(7, 1fr);">
+        <div class="k k-blue" data-btn="POSITION">POSIT<br>N</div>
+        <div class="k k-blue" data-btn="CORRECT">CORR<br>ECT</div>
+        <div class="k k-blue" data-btn="PLACE">PLACE</div>
+        <div class="k k-blue" data-btn="FINE">FINE</div>
+        <div class="k k-blue" data-btn="INCRTYPE">INCR<br>TYPE</div>
+        <div class="k k-blue" data-btn="TOUCHUP">TOUCH<br>UP</div>
+        <div class="k k-blue" data-btn="ORDER">ORDER</div>
+      </div>
+    </div>
+
     <div class="main-area">
 
       <div class="left-block">
@@ -929,6 +943,17 @@ const state = {
   positions: [0, 0, 0, 0, 0, 0],
   cart: { x: 1500, y: 0, z: 1200, w: 0, p: 90, r: 0 },
   jogRepeat: {},
+
+  // program edit
+  motionType: 'FINE',
+  incrType: 'JOINT',
+  correctMode: false,
+  utool: 1,
+  uframe: 1,
+  prIndex: 0,
+  prRegs: null,
+  baseX: 0,
+  wristR: 0,
 
   // screen navigation
   page: 'utilHints',
@@ -1503,39 +1528,48 @@ const PAGES = {
   /* ---- Position (live, driven by jog) ---- */
   position: {
     title: 'POSITION',
-    subtitle: () => state.coord,
+    subtitle: () => state.coord + (state.coord === 'JOINT' ? ' 100%' : `  UTOOL_NUM=${state.utool || 1}  UFRAME_NUM=${state.uframe || 1}`),
     custom: () => {
       if (state.coord === 'JOINT') {
-        return `
-          <div class="pg-section">JOINT  (degrees)</div>
-          ${state.positions.map((v, i) => `
-            <div class="pg-row"><span class="k-col">J${i+1}</span><span class="v-col">${fmt(v)}</span></div>
-          `).join('')}
-        `;
+        let html = '<div class="pg-section">JOINT  (degrees)</div><div class="pg-list">';
+        for (let i = 0; i < 6; i++) {
+          const val = state.positions[i];
+          const sel = i === state.cursor ? ' sel' : '';
+          html += `<div class="pg-row${sel}"><span class="k-col">J${i+1}</span><span class="v-col">${fmt(val)}</span></div>`;
+        }
+        html += '</div>';
+        html += '<div style="margin-top:6px;font-size:10px;color:#6a9a6a;">J7/J8: Not configured</div>';
+        return html;
       } else {
         const c = state.cart;
-        return `
-          <div class="pg-section">CARTESIAN  (${state.coord})</div>
-          <div class="pg-row"><span class="k-col">X</span><span class="v-col">${fmt(c.x)} mm</span></div>
-          <div class="pg-row"><span class="k-col">Y</span><span class="v-col">${fmt(c.y)} mm</span></div>
-          <div class="pg-row"><span class="k-col">Z</span><span class="v-col">${fmt(c.z)} mm</span></div>
-          <div class="pg-row"><span class="k-col">W</span><span class="v-col">${fmt(c.w)}°</span></div>
-          <div class="pg-row"><span class="k-col">P</span><span class="v-col">${fmt(c.p)}°</span></div>
-          <div class="pg-row"><span class="k-col">R</span><span class="v-col">${fmt(c.r)}°</span></div>
-          <div class="pg-row"><span class="k-col">CFG</span><span class="v-col">N U T, 0, 0, 0</span></div>
-        `;
+        let html = `<div class="pg-section">CARTESIAN  (${state.coord})</div><div class="pg-list">`;
+        html += `<div class="pg-row"><span class="k-col">X</span><span class="v-col">${fmt(c.x).padStart(10)} mm</span></div>`;
+        html += `<div class="pg-row"><span class="k-col">Y</span><span class="v-col">${fmt(c.y).padStart(10)} mm</span></div>`;
+        html += `<div class="pg-row"><span class="k-col">Z</span><span class="v-col">${fmt(c.z).padStart(10)} mm</span></div>`;
+        html += `<div class="pg-row"><span class="k-col">W</span><span class="v-col">${fmt(c.w).padStart(10)} deg</span></div>`;
+        html += `<div class="pg-row"><span class="k-col">P</span><span class="v-col">${fmt(c.p).padStart(10)} deg</span></div>`;
+        html += `<div class="pg-row"><span class="k-col">R</span><span class="v-col">${fmt(c.r).padStart(10)} deg</span></div>`;
+        html += `<div class="pg-row" style="color:#ffaa00;"><span class="k-col">CFG</span><span class="v-col">N U T, 0, 0, 0</span></div>`;
+        html += '</div>';
+        return html;
       }
     },
-    softKeys: ['JOINT', 'USER', 'WORLD', 'TOOL', '>'],
+    navCount: () => state.coord === 'JOINT' ? 6 : 7,
+    softKeys: ['JOINT', 'USER', 'WORLD', 'TOOL', 'JGFRM'],
     onF: (i) => {
-      if (i === 0) state.coord = 'JOINT';
-      if (i === 1) state.coord = 'USER';
-      if (i === 2) state.coord = 'WORLD';
-      if (i === 3) state.coord = 'TOOL';
-      refreshStatus();
-      renderPage();
+      const coords = ['JOINT', 'USER', 'WORLD', 'TOOL', 'JGFRM'];
+      if (i >= 0 && i < coords.length) {
+        state.coord = coords[i];
+        refreshStatus();
+        renderPage();
+      }
     },
-    hint: 'Hold DEADMAN, press jog keys — values update live.',
+    onEnter: (i) => {
+      if (state.coord === 'JOINT' && i >= 0 && i < 6) {
+        toast(`J${i+1}: ${fmt(state.positions[i])} deg`);
+      }
+    },
+    hint: 'Hold DEADMAN, press jog keys — values update live. F1-F5 change coord system.',
   },
 
   /* ---- Status ---- */
@@ -1821,6 +1855,94 @@ const PAGES = {
     },
     hint: 'Press RESET key to clear active alarms.',
   },
+
+  /* ---- OFFSET / PR Registers ---- */
+  offset: {
+    title: 'OFFSET',
+    subtitle: () => `PR[${state.prIndex || 1}]`,
+    custom: () => {
+      if (!state.prRegs) state.prRegs = Array.from({length: 10}, () => ({x:0, y:0, z:0, w:0, p:0, r:0}));
+      const pr = state.prRegs[state.prIndex || 0] || state.prRegs[0];
+      let html = '<div class="pg-section">POSITION REGISTER</div><div class="pg-list">';
+      html += `<div class="pg-row sel"><span class="k-col">X</span><span class="v-col">${fmt(pr.x).padStart(10)} mm</span></div>`;
+      html += `<div class="pg-row"><span class="k-col">Y</span><span class="v-col">${fmt(pr.y).padStart(10)} mm</span></div>`;
+      html += `<div class="pg-row"><span class="k-col">Z</span><span class="v-col">${fmt(pr.z).padStart(10)} mm</span></div>`;
+      html += `<div class="pg-row"><span class="k-col">W</span><span class="v-col">${fmt(pr.w).padStart(10)} deg</span></div>`;
+      html += `<div class="pg-row"><span class="k-col">P</span><span class="v-col">${fmt(pr.p).padStart(10)} deg</span></div>`;
+      html += `<div class="pg-row"><span class="k-col">R</span><span class="v-col">${fmt(pr.r).padStart(10)} deg</span></div>`;
+      html += `<div class="pg-row"><span class="k-col">UTOOL</span><span class="v-col">1</span></div>`;
+      html += `<div class="pg-row"><span class="k-col">UFRAME</span><span class="v-col">1</span></div>`;
+      html += '</div>';
+      return html;
+    },
+    navCount: () => 9,
+    softKeys: ['PREV', 'NEXT', 'CLEAR', 'SET', 'CURR'],
+    onF: (i) => {
+      if (i === 0) { state.prIndex = Math.max(0, (state.prIndex||1) - 2); toast('PR[' + (state.prIndex+1) + ']'); renderPage(); }
+      if (i === 1) { state.prIndex = Math.min(9, (state.prIndex||1)); toast('PR[' + (state.prIndex+1) + ']'); renderPage(); }
+      if (i === 2) { if (state.prRegs) { const pr = state.prRegs[state.prIndex||0]; Object.assign(pr, {x:0,y:0,z:0,w:0,p:0,r:0}); renderPage(); toast('PR cleared'); } }
+      if (i === 3) { toast('SET: Enter values'); }
+      if (i === 4) { 
+        if (state.prRegs) {
+          const pr = state.prRegs[state.prIndex||0];
+          pr.x = state.cart.x; pr.y = state.cart.y; pr.z = state.cart.z;
+          pr.w = state.cart.w; pr.p = state.cart.p; pr.r = state.cart.r;
+          renderPage();
+          toast('PR set to current position');
+        }
+      }
+    },
+    onEnter: (i) => {
+      if (state.prRegs && i >= 0 && i < 6) {
+        const keys = ['x','y','z','w','p','r'];
+        startEdit({ target: { kind: 'prReg', idx: i, key: keys[i] }, label: `PR[${(state.prIndex||1)}].${keys[i].toUpperCase()} =`, buffer: String(state.prRegs[state.prIndex||0][keys[i]]) });
+      }
+    },
+    hint: 'F1 PREV PR | F2 NEXT PR | F3 CLEAR | F5 SET TO CURRENT | ENTER to edit value',
+  },
+
+  /* ---- PICTURE / Robot Visualization ---- */
+  picture: {
+    title: 'PICTURE',
+    subtitle: 'R-2000iC/165F',
+    custom: () => {
+      // Simple ASCII-style robot visualization
+      const j1 = state.positions[0];
+      const j2 = state.positions[1];
+      const j3 = state.positions[2];
+      return `
+        <div class="pg-section">ROBOT VIEW (Top)</div>
+        <div style="font-family:'Courier New',monospace;font-size:10px;color:#8adb9a;white-space:pre;line-height:1.2;">
+    ╔════════════════════════════════════╗
+    ║         R-2000iC/165F              ║
+    ║                                    ║
+    ║           ╭───╮                    ║
+    ║      J2   │ ║ │  J3                ║
+    ║    ╭──────╯ ║ └──────╮             ║
+    ║    │        ║        │             ║
+    ║    │   J1   ║        │  J4          ║
+    ║    │  ${String(j1).padStart(6)}  ║        ${String(j3).padStart(6)}  ║
+    ║    │   ╔═══╗║╔═══╗   │             ║
+    ║    └───║ ● ║║║ ● ║───┘             ║
+    ║        ╚═══╝║╚═══╝                 ║
+    ║             ║                      ║
+    ║        J5   ║   J6                 ║
+    ║      ${String(j2).padStart(6)}  ║                      ║
+    ║                                    ║
+    ╚════════════════════════════════════╝
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:#6a9a6a;">
+          BASE: ${state.baseX || 0}mm  |  WRIST: ${state.wristR || 0}°
+        </div>
+      `;
+    },
+    softKeys: ['TOP', 'FRONT', 'SIDE', 'WIRE', 'ZOOM'],
+    onF: (i) => {
+      const views = ['TOP', 'FRONT', 'SIDE', 'WIRE', 'ZOOM'];
+      toast('VIEW: ' + views[i]);
+    },
+    hint: 'Visual robot representation. F1-F5 change view angle.',
+  },
 };
 
 /* =====================================================================
@@ -2069,6 +2191,10 @@ function commitEdit() {
     } else if (e.target.kind === 'tpLine') {
       state.tpLines[e.target.idx] = '  ' + (e.target.idx+1) + ': ' + (e.buffer || 'NOP ;');
       toast('Line ' + (e.target.idx+1) + ' modified');
+    } else if (e.target.kind === 'prReg') {
+      if (!state.prRegs) state.prRegs = Array.from({length: 10}, () => ({x:0, y:0, z:0, w:0, p:0, r:0}));
+      state.prRegs[state.prIndex||0][e.target.key] = val;
+      toast(`PR[${(state.prIndex||1)}].${e.target.key.toUpperCase()} = ${val}`);
     } else {
       toast('Invalid entry');
     }
@@ -2254,6 +2380,59 @@ function handleBtn(btn, el) {
         { label: ' 9  BACKUP',            action: c => { c(); goPage('backup'); } },
         { label: ' 0  RESTORE',           action: c => { c(); toast('RESTORE (iter 3)'); } },
       ]);
+      break;
+
+    /* ---- program edit keys ---- */
+    case 'POSITION': goPage('position'); break;
+    case 'CORRECT':
+      if (state.page === 'edit') {
+        toast('CORRECT: Mark position for correction');
+        state.correctMode = true;
+      } else {
+        toast('POSITION: Open POSITION screen');
+        goPage('position');
+      }
+      break;
+    case 'PLACE':
+      if (state.page === 'edit') {
+        toast('PLACE: Insert position at cursor');
+        // Insert current position into TP program
+        if (state.tpLines) {
+          state.tpUndoStack.push(state.tpLines.slice());
+          const posStr = `J P[${state.cursor + 1}] 100% FINE ;`;
+          state.tpLines.splice(state.cursor + 1, 0, posStr);
+          renderPage();
+        }
+      } else {
+        toast('PLACE: Use in EDIT mode to insert position');
+      }
+      break;
+    case 'FINE':
+      if (state.page === 'edit') {
+        toast('Motion Type: FINE (precision stop)');
+        state.motionType = 'FINE';
+      } else {
+        toast('Motion Type: FINE');
+      }
+      break;
+    case 'INCRTYPE':
+      state.incrType = (state.incrType || 'JOINT') === 'JOINT' ? 'CARTESIAN' : 'JOINT';
+      toast('INCRTYPE: ' + state.incrType);
+      break;
+    case 'TOUCHUP':
+      if (state.page === 'edit' && state.tpLines) {
+        toast('TOUCHUP: Position updated to current');
+        // Mark current line as touched up
+        state.tpUndoStack.push(state.tpLines.slice());
+        state.tpLines[state.cursor] = state.tpLines[state.cursor].replace(/P\[\d+\]/, 'P[' + (state.cursor + 1) + ']');
+        renderPage();
+      } else {
+        toast('TOUCHUP: Use in EDIT mode');
+      }
+      break;
+    case 'ORDER':
+      toast('ORDER: Program list sorting');
+      goPage('select');
       break;
 
     /* ---- soft-keys ---- */
