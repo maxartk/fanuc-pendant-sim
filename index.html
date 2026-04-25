@@ -2527,16 +2527,14 @@ function handleBtn(btn, el) {
     case 'DATA':   goPage('data'); break;
     case 'FCTN':
       openModal('FCTN', [
-        { label: ' 1  ABORT (ALL)',       action: c => { stopAllJog(); c(); toast('ABORT ALL'); } },
-        { label: ' 2  Disable FWD/BWD',   action: c => { c(); toast('Disabled FWD/BWD'); } },
-        { label: ' 3  CHANGE GROUP',      action: c => { state.group = state.group===1?2:1; refreshStatus(); c(); toast('GROUP ' + state.group); } },
-        { label: ' 4  TOGGLE SUB GROUP',  action: c => { c(); toast('Sub group toggled'); } },
-        { label: ' 5  RELEASE WAIT',      action: c => { c(); toast('Release wait'); } },
-        { label: ' 6  QUICK / FULL menu', action: c => c() },
-        { label: ' 7  SAVE',              action: c => { c(); toast('Saved'); } },
-        { label: ' 8  PRINT SCREEN',      action: c => { c(); toast('Screen printed'); } },
-        { label: ' 9  BACKUP',            action: c => { c(); goPage('backup'); } },
-        { label: ' 0  RESTORE',           action: c => { c(); toast('RESTORE (iter 3)'); } },
+        { label: ' 1  ABORT (ALL)',      action: c => { stopAllJog(); c(); toast('ABORT ALL'); } },
+        { label: ' 2  END',              action: c => { c(); toast('END'); } },
+        { label: ' 3  UNLOCK TP',        action: c => { c(); toast('TP Unlocked'); } },
+        { label: ' 4  ENABLE TP',        action: c => { c(); toast('TP Enabled'); } },
+        { label: ' 5  RESET ALL',        action: c => { c(); toast('Reset All'); } },
+        { label: ' 6  OVERRIDE 100%',    action: c => { state.override = 100; refreshStatus(); c(); toast('Override 100%'); } },
+        { label: ' 7  CYCLE POWER',      action: c => { c(); toast('Cycle Power'); } },
+        { label: ' 8  QUICK MOTION',     action: c => { c(); toast('Quick Motion'); } },
       ]);
       break;
 
@@ -2763,6 +2761,12 @@ document.addEventListener('keydown', e => {
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopAllJog(); });
 window.addEventListener('blur', stopAllJog);
 </script>
+<!-- Patch 1: STATUS sub-screens + POSITION fixes -->
+<script src="patches/status_and_position.js"></script>
+<!-- Patch 2: I/O 5-column format + bug fixes (viewProgramDetail, modifyTPLine) -->
+<script src="patches/io_and_bugs.js"></script>
+<!-- Patch 3: SELECT/EDIT/DATA/ALARM/FILE/MENU/SETUP screen fixes -->
+<script src="patches/remaining_screens.js"></script>
 
 </body>
 </html>
